@@ -7,12 +7,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="にげるロボ">
 <title>にげるロボ</title>
-<link rel="stylesheet" href="robo.css?v=1">
+<link rel="stylesheet" href="robo.css?v=2">
 </head>
 <body>
 <main id="start">
   <h1>にげるロボ</h1>
-  <p class="lead">スマホのカメラ越しに、まわりの左右のどこかに、ロボットが立っています。見つけると、全速力で遠くへ逃げます。ロボットは、ときどき「ピッ」と鳴きます。音のする方を、さがしてください。</p>
+  <p class="lead">スマホのカメラ越しに、まわりの左右のどこかに、ロボットが立っています。見つけると、全速力で走り、地面にワープの穴をあけて、その中へ逃げこみます。ロボットは、ときどき「ピッ」と鳴きます。音のする方を、さがしてください。</p>
   <label for="size">ロボットの大きさ</label>
   <select id="size"><option value="0.7">小さい</option><option value="1" selected>ふつう</option><option value="1.5">大きい</option></select>
   <label for="dist">いる距離</label>
@@ -21,7 +21,7 @@
   <select id="eye"><option value="1.2">低め(1.2 m)</option><option value="1.4" selected>ふつう(1.4 m)</option><option value="1.6">高め(1.6 m)</option></select>
   <button type="button" id="go" class="primary">はじめる</button>
   <p class="msg" id="msg" role="status"></p>
-  <p class="msg">版 1</p>
+  <p class="msg">版 2</p>
   <ul class="tips">
     <li>モーションとカメラの許可を求められます。位置情報は使いません。</li>
     <li>ロボットは、はじめ、あなたの左右にいます。ゆっくり見回してください。</li>
@@ -36,6 +36,6 @@
   <button type="button" id="exit">戻る</button>
   <div id="find" aria-live="polite"></div>
 </div>
-<script src="robo.js?v=1"></script>
+<script src="robo.js?v=2"></script>
 </body>
 </html>

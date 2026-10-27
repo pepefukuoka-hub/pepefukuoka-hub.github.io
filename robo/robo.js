@@ -32,6 +32,9 @@
     alert(pan, vol) { tone(0, 2200, 1100, 0.28, 0.35 * vol, pan); tone(0.02, 1100, 550, 0.28, 0.2 * vol, pan, 'sawtooth'); },   // ピーッ!(見つかった)
     whirr(pan, vol) { tone(0, 180, 900, 0.5, 0.2 * vol, pan, 'sawtooth'); },   // ウィーン(走り出す)
     step(pan, vol) { tone(0, 140, 60, 0.06, 0.3 * vol, pan, 'triangle'); },   // ドタ(足音)
+    warp(pan, vol) { tone(0, 150, 1500, 0.55, 0.28 * vol, pan, 'sawtooth'); tone(0, 90, 800, 0.55, 0.25 * vol, pan, 'sine'); tone(0.1, 2400, 3200, 0.4, 0.1 * vol, pan, 'triangle'); },   // ヴォーン(穴があく)
+    fall(pan, vol) { tone(0, 1400, 110, 0.7, 0.3 * vol, pan, 'triangle'); tone(0, 700, 70, 0.7, 0.2 * vol, pan, 'sine'); },   // ひゅ〜ん(落ちる)
+    close(pan, vol) { tone(0, 700, 80, 0.18, 0.35 * vol, pan, 'square'); tone(0.02, 2400, 300, 0.2, 0.15 * vol, pan, 'triangle'); },   // ポンッ(穴がとじる)
     pop(pan, vol) { tone(0, 300, 1200, 0.12, 0.25 * vol, pan, 'triangle'); },   // ポン(あらわれた)
   };
   window.addEventListener('pointerup', () => { if (actx && actx.state !== 'running') actx.resume().catch(() => {}); });
@@ -83,6 +86,14 @@
       g.fillStyle = '#ff3b30'; g.beginPath(); g.arc(64, 64, 58, 0, 7); g.fill(); g.fillStyle = '#fff'; g.font = 'bold 92px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('!', 64, 70);
       return new THREE.CanvasTexture(c);
     }
+    function swirlTex() {   // 紫の渦。まん中は、暗い穴
+      const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'), gr = g.createRadialGradient(128, 128, 0, 128, 128, 126);
+      gr.addColorStop(0, 'rgba(3,0,14,1)'); gr.addColorStop(0.5, 'rgba(70,20,170,.95)'); gr.addColorStop(0.82, 'rgba(90,210,255,.95)'); gr.addColorStop(1, 'rgba(120,240,255,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+      g.translate(128, 128); g.lineCap = 'round';
+      for (let a = 0; a < 5; a++) { g.beginPath(); for (let r = 8; r <= 118; r += 3) { const ang = a * Math.PI * 2 / 5 + r * 0.045; r === 8 ? g.moveTo(Math.cos(ang) * r, Math.sin(ang) * r) : g.lineTo(Math.cos(ang) * r, Math.sin(ang) * r); } g.strokeStyle = 'rgba(210,240,255,.55)'; g.lineWidth = 7; g.stroke(); }
+      return new THREE.CanvasTexture(c);
+    }
     const COLORS = [{ body: 0xe8eef3, accent: 0xff8a1f }, { body: 0x3b6fd8, accent: 0x7be8ff }, { body: 0xd9d9df, accent: 0x7dff6b }, { body: 0xb04a4a, accent: 0xffe14d }];
 
     function makeRobot(ci) {
@@ -119,12 +130,29 @@
       init: function () {
         this.rs = []; for (let i = 0; i < this.data.n; i++) { const r = makeRobot(i); r.root.visible = false; r.root.scale.setScalar(this.data.size); this.el.object3D.add(r.root); this.rs.push(r); }
         this.cp = new THREE.Vector3(); this.f = new THREE.Vector3(); this.q = new THREE.Vector3(); this.phi = 0; this.found = 0; this.hudT = 0; this.started = false;
-        this.dust = []; this.dtex = dustTex();
+        this.dust = []; this.dtex = dustTex(); this.swirl = swirlTex(); this.portals = [];
       },
       tick: function (time, dtms) { try { this.step(time, dtms); } catch (e) { if (!this.err) { this.err = 1; console.error(e); } } },
       puff: function (pos) {
         const m = new THREE.SpriteMaterial({ map: this.dtex, transparent: true, depthWrite: false, color: 0xcfc8b8, opacity: 0.5 });
         const s = new THREE.Sprite(m); s.position.copy(pos); s.position.y = 0.12; s.scale.setScalar(0.3); this.el.object3D.add(s); this.dust.push({ s, m, a: 0 });
+      },
+      spark: function (pos, hex, up) {
+        const m = new THREE.SpriteMaterial({ map: this.dtex, transparent: true, depthWrite: false, color: hex, opacity: 0.9, blending: THREE.AdditiveBlending });
+        const s = new THREE.Sprite(m); s.position.copy(pos); s.scale.setScalar(0.18); this.el.object3D.add(s); this.dust.push({ s, m, a: 0, add: true, up: up || 1.5 });
+      },
+      openPortal: function (x, z) {   // 地面に、ワープの穴をあける
+        const rad = 1.3 * this.data.size, g = new THREE.Group(); g.position.set(x, 0.02, z);
+        const geo = new THREE.CircleGeometry(1, 48); geo.rotateX(-Math.PI / 2);
+        const dm = new THREE.MeshBasicMaterial({ map: this.swirl, transparent: true, depthWrite: false }), disc = new THREE.Mesh(geo, dm);
+        const rg = new THREE.RingGeometry(0.92, 1.18, 48); rg.rotateX(-Math.PI / 2);
+        const rm = new THREE.MeshBasicMaterial({ color: 0x7be8ff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }), ring = new THREE.Mesh(rg, rm);
+        const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.dtex, color: 0x8a5cff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false })); gl.scale.set(rad * 4.5, rad * 4.5, 1); gl.position.y = 0.1;
+        const bm = new THREE.SpriteMaterial({ map: this.dtex, color: 0x9a7bff, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }), beam = new THREE.Sprite(bm);   // 光の柱(遠くからも見える)
+        beam.scale.set(1.3, 3.2, 1); beam.position.y = 1.5;
+        disc.renderOrder = 1; ring.renderOrder = 2; g.add(disc, ring, gl, beam); g.scale.setScalar(0.01); this.el.object3D.add(g);
+        const P = { g, disc, ring, gl, beam, dm, rm, rad, t: 0, closing: -1, x, z };
+        this.portals.push(P); return P;
       },
       place: function (r) {   // 左か右の、画面に入らないところに出す
         const phi = this.phi + r.side * (Math.PI / 2 + R(-0.3, 0.3)), d = this.data.dist * R(0.9, 1.3);
@@ -173,12 +201,20 @@
             r.yaw += wrap(Math.atan2(this.cp.x - pos.x, this.cp.z - pos.z) - r.yaw) * Math.min(1, dt * 12);
             by = 0.35 * Math.sin(Math.min(1, r.t / 0.5) * Math.PI); armUp = 1.6; r.head.rotation.y = 0;
             if (r.t > 0.55) {
-              r.state = 'flee'; r.t = 0; r.mark.visible = false; r.speed = 0;
+              r.state = 'flee'; r.t = 0; r.mark.visible = false; r.speed = 0; r.portal = null; r.runT = R(1.0, 1.5);
               let dx = pos.x - this.cp.x, dz = pos.z - this.cp.z; const l = Math.hypot(dx, dz) || 1, a = Math.atan2(dx, dz) + R(-0.35, 0.35);
               r.dir.set(Math.sin(a), 0, Math.cos(a)); const k = this.pan(r); SND.whirr(k.pan, k.vol);
             }
           } else if (r.state === 'flee') {   // 全速力で、遠くへ
             r.t += dt; r.speed = Math.min(11, r.speed + 40 * dt);
+            if (!r.portal && r.t > r.runT) {   // ちょっと走ったら、行く手に、ワープの穴をあける
+              r.portal = this.openPortal(pos.x + r.dir.x * 3.8 * this.data.size, pos.z + r.dir.z * 3.8 * this.data.size);
+              const k = this.pan(r); SND.warp(k.pan, k.vol);
+            }
+            if (r.portal) {
+              const P = r.portal, dx = P.x - pos.x, dz = P.z - pos.z;
+              if (dx * r.dir.x + dz * r.dir.z < 0.25) { r.state = 'fall'; r.t = 0; r.fx = pos.x; r.fz = pos.z; const k = this.pan(r); SND.fall(k.pan, k.vol); }
+            }
             pos.addScaledVector(r.dir, r.speed * dt);
             r.yaw += wrap(Math.atan2(r.dir.x, r.dir.z) - r.yaw) * Math.min(1, dt * 14);
             r.head.rotation.y = 0; r.ph += dt * (10 + r.speed * 2.2); sw = Math.sin(r.ph);
@@ -186,6 +222,13 @@
             r.puff -= dt; if (r.puff <= 0) { r.puff = 0.05; this.puff(pos); }
             const sk = Math.floor(r.ph / Math.PI); if (sk !== r.stepK) { r.stepK = sk; const k = this.pan(r); SND.step(k.pan, k.vol); }
             if (dC > GOAL_FAR || r.t > 9) { r.state = 'gone'; r.root.visible = false; r.timer = R(2.5, 4.5); }
+          } else if (r.state === 'fall') {   // 穴に、吸いこまれる
+            r.t += dt; const u = Math.min(1, r.t / 0.75), P = r.portal;
+            pos.x += (P.x - pos.x) * Math.min(1, dt * 10); pos.z += (P.z - pos.z) * Math.min(1, dt * 10);
+            r.yaw += dt * 14; by = -0.6 * u * u; lean = 0.3; r.ph += dt * 30; sw = Math.sin(r.ph); armUp = 0;
+            r.root.scale.setScalar(this.data.size * Math.max(0.001, Math.pow(1 - u, 1.4)));
+            if (Math.random() < dt * 60) this.spark(new THREE.Vector3(P.x + R(-0.5, 0.5), 0.1, P.z + R(-0.5, 0.5)), Math.random() < 0.5 ? 0x7be8ff : 0xb68cff, R(1.5, 3.5));
+            if (u >= 1) { r.root.visible = false; r.state = 'gone'; r.timer = R(2.5, 4.5); P.closing = 0; const k = this.pan(r); SND.close(k.pan, k.vol); for (let i = 0; i < 18; i++) this.spark(new THREE.Vector3(P.x, 0.15, P.z), i % 2 ? 0x7be8ff : 0xffffff, R(2, 5)); }
           }
           const g = r.g; g.position.y = by; g.rotation.y = r.yaw; g.rotation.x = lean;
           r.legL.rotation.x = sw * 0.9; r.legR.rotation.x = -sw * 0.9;
@@ -194,10 +237,17 @@
           r.mark.position.y = 1.75 + (r.state === 'alert' ? 0.1 * Math.sin(tt * 20) : 0);
           r.root.rotation.y = 0;
         });
+        for (let i = this.portals.length - 1; i >= 0; i--) {
+          const P = this.portals[i]; P.t += dt; if (P.closing >= 0) P.closing += dt;
+          const open = Math.min(1, P.t / 0.3), shut = P.closing >= 0 ? Math.max(0, 1 - P.closing / 0.45) : 1, sc = P.rad * (1 - Math.pow(1 - open, 3)) * shut;
+          P.g.scale.setScalar(Math.max(0.001, sc)); P.disc.rotation.y = -P.t * 5; P.ring.rotation.y = P.t * 3; P.gl.material.opacity = 0.55 + 0.25 * Math.sin(P.t * 12); P.beam.material.opacity = 0.5 + 0.2 * Math.sin(P.t * 9 + 1);
+          if (Math.random() < dt * 25 && P.closing < 0) this.spark(new THREE.Vector3(P.x + R(-1, 1) * P.rad, 0.1, P.z + R(-1, 1) * P.rad), 0x9fe8ff, R(0.8, 2));
+          if ((P.closing >= 0 && shut <= 0) || P.t > 8) { this.el.object3D.remove(P.g); P.dm.dispose(); P.rm.dispose(); this.portals.splice(i, 1); }
+        }
         for (let i = this.dust.length - 1; i >= 0; i--) {
           const d = this.dust[i]; d.a += dt * 1.6;
           if (d.a >= 1) { this.el.object3D.remove(d.s); d.m.dispose(); this.dust.splice(i, 1); continue; }
-          d.s.scale.setScalar(0.3 + d.a * 1.2); d.m.opacity = 0.5 * (1 - d.a); d.s.position.y += dt * 0.5;
+          if (d.add) { d.s.scale.setScalar(0.18 * (1 - d.a * 0.6)); d.m.opacity = 0.9 * (1 - d.a); d.s.position.y += dt * d.up; } else { d.s.scale.setScalar(0.3 + d.a * 1.2); d.m.opacity = 0.5 * (1 - d.a); d.s.position.y += dt * 0.5; }
         }
         if (time - this.hudT > 300) {
           this.hudT = time;
