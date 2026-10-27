@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101412">
+<title>つくったもの</title>
+<style>
+:root { --bg: #f3f5f1; --card: #fff; --fg: #151a17; --muted: #5d665f; --line: #d3d9d2; --accent: #1f7a4d; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg: #101412; --card: #1a201d; --fg: #eef2ee; --muted: #9ba79d; --line: #2f3833; --accent: #5fd08f; color-scheme: dark; } }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font: 16px/1.6 -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  padding: max(24px, env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) max(32px, env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px)); }
+main { max-width: 720px; margin: 0 auto; }
+h1 { font-size: 30px; margin: 0 0 4px; letter-spacing: .05em; }
+.sub { margin: 0 0 20px; color: var(--muted); font-size: 14px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+a.card { display: flex; gap: 14px; align-items: center; text-decoration: none; color: inherit; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; min-height: 84px; }
+a.card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ic { font-size: 34px; line-height: 1; flex: none; width: 44px; text-align: center; }
+.tx { min-width: 0; }
+.tx b { display: block; font-size: 18px; }
+.tx span { color: var(--muted); font-size: 13px; }
+.note { margin-top: 20px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>つくったもの</h1>
+  <p class="sub">スマホで開いて、そのまま使えます。タップして開いてください。</p>
+  <div class="grid">
+    <a class="card" href="https://pepefukuoka-hub.github.io/mahou/"><div class="ic">✨</div><div class="tx"><b>魔法</b><span>声で、雷・炎・水・おにぎりなどを出す(AR)</span></div></a>
+    <a class="card" href="https://pepefukuoka-hub.github.io/onigiri-ar/"><div class="ic">🍙</div><div class="tx"><b>にぎにぎ</b><span>踊るおにぎりが、目の前にいる(AR)</span></div></a>
+    <a class="card" href="https://pepefukuoka-hub.github.io/genba-cam/"><div class="ic">📹</div><div class="tx"><b>現場の目</b><span>スマホ同士で、カメラの映像を見る</span></div></a>
+    <a class="card" href="https://pepefukuoka-hub.github.io/douga-cut/"><div class="ic">✂️</div><div class="tx"><b>動画カット</b><span>動画を切り取って保存。音楽も入れられる</span></div></a>
+    <a class="card" href="https://pepefukuoka-hub.github.io/manhole/"><div class="ic">🕳️</div><div class="tx"><b>マンホール巡り</b><span>マンホールを集めて、記録する</span></div></a>
+    <a class="card" href="https://pepefukuoka-hub.github.io/ar-kanban/"><div class="ic">🪧</div><div class="tx"><b>ARかんばん</b><span>現場に、かんばんを浮かべる(AR)</span></div></a>
+    <a class="card" href="https://pepefukuoka-hub.github.io/denshi-kokuban/"><div class="ic">📋</div><div class="tx"><b>電子黒板</b><span>工事写真の黒板を、写真に入れる</span></div></a>
+  </div>
+  <p class="note">カメラやマイクを使うものは、開いたときに、許可を聞かれます。</p>
+</main>
+</body>
+</html>
