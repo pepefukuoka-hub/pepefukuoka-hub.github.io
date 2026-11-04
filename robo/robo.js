@@ -31,9 +31,9 @@
     ping(pan, vol) { tone(0, 1500, 1900, 0.07, 0.18 * vol, pan); tone(0.1, 1900, 2300, 0.07, 0.18 * vol, pan); },   // ピッピッ(いるよ)
     alert(pan, vol) { tone(0, 2200, 1100, 0.28, 0.35 * vol, pan); tone(0.02, 1100, 550, 0.28, 0.2 * vol, pan, 'sawtooth'); },   // ピーッ!(見つかった)
     whirr(pan, vol) { tone(0, 180, 900, 0.5, 0.2 * vol, pan, 'sawtooth'); },   // ウィーン(走り出す)
-    step(pan, vol) { tone(0, 140, 60, 0.06, 0.3 * vol, pan, 'triangle'); },   // ドタ(足音)
+    step(pan, vol) { tone(0, 2600, 1500, 0.05, 0.14 * vol, pan, 'square'); tone(0, 3900, 2100, 0.035, 0.09 * vol, pan, 'square'); tone(0, 320, 150, 0.07, 0.2 * vol, pan, 'triangle'); },   // カシャン(金属の足音)
     warp(pan, vol) { tone(0, 150, 1500, 0.55, 0.28 * vol, pan, 'sawtooth'); tone(0, 90, 800, 0.55, 0.25 * vol, pan, 'sine'); tone(0.1, 2400, 3200, 0.4, 0.1 * vol, pan, 'triangle'); },   // ヴォーン(穴があく)
-    fall(pan, vol) { tone(0, 1400, 110, 0.7, 0.3 * vol, pan, 'triangle'); tone(0, 700, 70, 0.7, 0.2 * vol, pan, 'sine'); },   // ひゅ〜ん(落ちる)
+    fall(pan, vol) { tone(0, 2600, 180, 0.75, 0.26 * vol, pan, 'sine'); tone(0.02, 1300, 90, 0.75, 0.14 * vol, pan, 'triangle'); },   // ヒューン(穴に入る)
     close(pan, vol) { tone(0, 700, 80, 0.18, 0.35 * vol, pan, 'square'); tone(0.02, 2400, 300, 0.2, 0.15 * vol, pan, 'triangle'); },   // ポンッ(穴がとじる)
     pop(pan, vol) { tone(0, 300, 1200, 0.12, 0.25 * vol, pan, 'triangle'); },   // ポン(あらわれた)
   };

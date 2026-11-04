@@ -1,0 +1,13 @@
+{
+  "name": "つくったもの",
+  "short_name": "つくったもの",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#0b1020",
+  "icons": [
+    { "src": "icons/hub-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/hub-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

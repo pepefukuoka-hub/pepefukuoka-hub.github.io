@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f26b1d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="電力量計算">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/svg+xml" href="../icons/getsuji-tenken.svg">
+<title>月次点検 電力量計算</title>
+<style>
+:root{--bg:#f4f1ec;--card:#fff;--fg:#221d18;--mut:#6b625a;--line:#e3ddd4;--ac:#f26b1d;--acfg:#fff;--soft:#fdeedd;--bad:#c2261f;--ok:#2a7a4f}
+@media (prefers-color-scheme:dark){:root{--bg:#16130f;--card:#211c17;--fg:#f3ede5;--mut:#a79d92;--line:#37302a;--ac:#ff8a43;--acfg:#1d0e03;--soft:#33261a;--bad:#ff8a80;--ok:#6cc79a}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg)}
+body{color:var(--fg);font:16px/1.6 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+ padding:max(20px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(48px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+main{max-width:640px;margin:0 auto;display:grid;gap:14px}
+header{display:flex;gap:12px;align-items:center}
+header img{width:48px;height:48px;border-radius:12px}
+h1{margin:0;font-size:22px;line-height:1.2}
+.back{font-size:13px;color:var(--mut);text-decoration:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+h2{margin:0 0 10px;font-size:14px;color:var(--mut);letter-spacing:.08em}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:grid;gap:4px;font-size:13px;color:var(--mut)}
+label b{color:var(--fg);font-size:14px}
+input,select{width:100%;font:inherit;font-size:18px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:46px;font-variant-numeric:tabular-nums}
+input:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--ac);outline-offset:1px}
+.full{grid-column:1/-1}
+.row{display:flex;gap:8px}.row>*{flex:1}
+button{font:inherit;font-weight:700;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg);padding:10px 12px;min-height:46px;cursor:pointer}
+button.pri{background:var(--ac);color:var(--acfg);border-color:var(--ac)}
+button.sm{min-height:36px;font-size:13px;padding:6px 10px;font-weight:600}
+.res{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.res div{background:var(--soft);border-radius:12px;padding:12px}
+.res small{display:block;color:var(--mut);font-size:12px}
+.res strong{font-size:24px;font-variant-numeric:tabular-nums;line-height:1.3}
+.res em{font-style:normal;font-size:13px;color:var(--mut);margin-left:3px}
+.res .main{grid-column:1/-1;background:var(--ac);color:var(--acfg)}
+.res .main small,.res .main em{color:inherit;opacity:.85}
+.res .main strong{font-size:32px}
+.msg{min-height:1.5em;margin:8px 0 0;font-size:14px;color:var(--mut)}
+.msg.bad{color:var(--bad)}.msg.ok{color:var(--ok)}
+table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{text-align:right;padding:6px 4px;border-top:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--mut);font-weight:600;font-size:12px;border-top:0}
+details{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+summary{cursor:pointer;font-weight:700}
+details p,details li{font-size:14px;color:var(--mut);margin:.5em 0}
+details code{background:var(--bg);padding:1px 6px;border-radius:6px;color:var(--fg)}
+.empty{color:var(--mut);font-size:14px;margin:0}
+</style>
+</head>
+<body>
+<main>
+ <header>
+  <img src="../icons/getsuji-tenken.svg" alt="" width="48" height="48">
+  <div><h1>月次点検 電力量計算</h1><a class="back" href="../work/">← 仕事に戻る</a></div>
+ </header>
+
+ <section class="card" aria-label="入力">
+  <h2>入力</h2>
+  <div class="grid">
+   <label><b>① 需要電力</b>kW<input id="dem" inputmode="decimal" autocomplete="off" placeholder="例 12.5"></label>
+   <label><b>② 乗率</b>倍<input id="mul" inputmode="decimal" autocomplete="off" placeholder="例 40"></label>
+   <label><b>③ 今回指針</b><input id="cur" inputmode="decimal" autocomplete="off" placeholder="今回の読み"></label>
+   <label><b>④ 前回指針</b><input id="prv" inputmode="decimal" autocomplete="off" placeholder="前回の読み"></label>
+   <label><b>前回点検日</b><input id="pd" type="date"></label>
+   <label><b>今回実施日</b><input id="cd" type="date"></label>
+   <label class="full"><b>メーターの桁数</b>一周して 0 に戻ったときだけ設定します
+    <select id="dig"><option value="0">設定しない</option><option value="4">4桁(9999 の次が 0)</option><option value="5">5桁</option><option value="6">6桁</option><option value="7">7桁</option></select></label>
+  </div>
+  <div class="row" style="margin-top:12px">
+   <button type="button" id="today" class="sm">今回実施日を、今日にする</button>
+   <button type="button" id="clear" class="sm">入力を消す</button>
+  </div>
+ </section>
+
+ <section class="card" aria-label="結果" aria-live="polite">
+  <h2>結果</h2>
+  <div class="res">
+   <div class="main"><small>使用電力量</small><strong id="r-use">―</strong><em>kWh</em></div>
+   <div><small>最大需要電力</small><strong id="r-max">―</strong><em>kW</em></div>
+   <div><small>点検間隔</small><strong id="r-day">―</strong><em>日</em></div>
+   <div class="full" style="grid-column:1/-1"><small>一日平均電力量</small><strong id="r-avg">―</strong><em>kWh/日</em></div>
+  </div>
+  <p class="msg" id="msg" role="status"></p>
+  <div class="row">
+   <button type="button" id="copy" class="sm">結果をコピー</button>
+   <button type="button" id="save" class="pri sm">記録して、次へ進む</button>
+  </div>
+  <p class="empty" style="margin-top:8px;font-size:12px">「記録して、次へ進む」: 今回の値を履歴に残し、今回指針・今回実施日を、前回の欄へ移します。来月は、今回の欄だけ入れれば計算できます。</p>
+ </section>
+
+ <section class="card" aria-label="履歴">
+  <h2>記録(この端末の中だけ)</h2>
+  <div id="hist"></div>
+ </section>
+
+ <details>
+  <summary>使い方と計算式</summary>
+  <ol>
+   <li>① 需要電力と ② 乗率を入れます。乗率は、変成比(CT比 × VT比)から決まる倍率です。</li>
+   <li>③ 今回の指針(メーターの読み)と、④ 前回の指針を入れます。</li>
+   <li>前回の点検日と、今回の実施日を入れます。「今日にする」ボタンで、今日の日付が入ります。</li>
+   <li>入れた順に、結果が自動で出ます。ボタンを押す必要はありません。</li>
+   <li>終わったら「記録して、次へ進む」を押します。来月の前回の欄に、今月の値が入ります。</li>
+  </ol>
+  <p><code>最大需要電力 = 需要電力 × 乗率</code></p>
+  <p><code>使用電力量 = (今回指針 − 前回指針) × 乗率</code></p>
+  <p><code>一日平均電力量 = 使用電力量 ÷ 点検間隔の日数</code></p>
+  <p>点検間隔は、前回点検日から今回実施日までの日数です(日付が同じなら 0 日)。</p>
+  <p>今回指針が前回より小さいときは、メーターが一周して 0 に戻っています。「メーターの桁数」を選ぶと、一周ぶんを足して計算します。</p>
+  <p>入力した値と記録は、この端末のブラウザの中にだけ保存されます。どこにも送られません。ブラウザのデータを消すと、なくなります。</p>
+  <p>この計算は目安です。請求や報告に使う値は、検針票などで確認してください。</p>
+ </details>
+</main>
+<script>
+(function(){
+ var $=function(i){return document.getElementById(i)};
+ var KEY='getsuji-tenken:v1', HKEY='getsuji-tenken:hist';
+ var F=['dem','mul','cur','prv','pd','cd','dig'];
+ function load(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
+ function store(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+ function num(s){s=String(s||'').replace(/[０-９．，]/g,function(c){return c==='．'?'.':c==='，'?'':String.fromCharCode(c.charCodeAt(0)-65248)}).replace(/,/g,'').trim();if(s===''||!/^-?\d*\.?\d+$/.test(s))return null;return Number(s)}
+ function fmt(n,d){if(n==null||!isFinite(n))return '―';var r=Number(n.toFixed(d==null?2:d));return r.toLocaleString('ja-JP',{maximumFractionDigits:d==null?2:d})}
+ function day(s){if(!s)return null;var p=s.split('-');return Date.UTC(+p[0],+p[1]-1,+p[2])}
+ function ymd(d){var z=function(n){return String(n).padStart(2,'0')};return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())}
+ var saved=load(KEY,{});F.forEach(function(f){if(saved[f]!=null)$(f).value=saved[f]});
+ var last=null;
+ function calc(){
+  var v={};F.forEach(function(f){v[f]=$(f).value});store(KEY,v);
+  var dem=num(v.dem),mul=num(v.mul),cur=num(v.cur),prv=num(v.prv),dig=+v.dig;
+  var a=day(v.pd),b=day(v.cd),m='',bad=false,use=null,mx=null,days=null,avg=null;
+  if(dem!=null&&mul!=null)mx=dem*mul;
+  if(cur!=null&&prv!=null&&mul!=null){
+   var diff=cur-prv;
+   if(diff<0){
+    if(dig>0){diff+=Math.pow(10,dig);m='メーターが一周したものとして、計算しました。'}
+    else{m='今回指針が、前回より小さいです。一周して 0 に戻ったなら、メーターの桁数を選んでください。';bad=true;diff=null}
+   }
+   if(diff!=null)use=diff*mul;
+  }
+  if(a!=null&&b!=null){days=Math.round((b-a)/864e5);if(days<0){m='今回実施日が、前回点検日より前です。日付を確かめてください。';bad=true;days=null}}
+  if(use!=null&&days!=null&&days>0)avg=use/days;
+  else if(use!=null&&days===0){m=m||'点検間隔が 0 日なので、一日平均は出せません。'}
+  $('r-use').textContent=fmt(use);$('r-max').textContent=fmt(mx);$('r-day').textContent=days==null?'―':fmt(days,0);$('r-avg').textContent=fmt(avg);
+  var e=$('msg');e.textContent=m;e.className='msg'+(bad?' bad':'');
+  last={use:use,mx:mx,days:days,avg:avg,cur:cur,prv:prv,pd:v.pd,cd:v.cd,dem:dem,mul:mul};
+ }
+ F.forEach(function(f){$(f).addEventListener('input',calc);$(f).addEventListener('change',calc)});
+ $('today').onclick=function(){$('cd').value=ymd(new Date());calc()};
+ $('clear').onclick=function(){if(!confirm('入力を消します(記録は残ります)。'))return;F.forEach(function(f){if(f!=='dig'&&f!=='mul')$(f).value=''});calc()};
+ function say(t,k){var e=$('msg');e.textContent=t;e.className='msg '+(k||'')}
+ $('copy').onclick=function(){
+  if(!last||last.use==null){say('先に、必要な値を入れてください。','bad');return}
+  var t=['月次点検 '+(last.cd||''),'使用電力量 '+fmt(last.use)+' kWh','最大需要電力 '+fmt(last.mx)+' kW','点検間隔 '+(last.days==null?'―':last.days)+' 日','一日平均電力量 '+fmt(last.avg)+' kWh/日'].join('\n');
+  (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){say('コピーしました','ok')},function(){say('コピーできませんでした。','bad')});
+ };
+ function hist(){
+  var h=load(HKEY,[]),el=$('hist');
+  if(!h.length){el.innerHTML='<p class="empty">まだ記録がありません。</p>';return}
+  var t='<table><tr><th>実施日</th><th>使用量kWh</th><th>最大kW</th><th>日平均</th><th></th></tr>';
+  h.slice().reverse().forEach(function(r,i){var idx=h.length-1-i;
+   t+='<tr><td>'+(r.cd||'―').replace(/^\d{4}-/,'').replace('-','/')+'</td><td>'+fmt(r.use,1)+'</td><td>'+fmt(r.mx,1)+'</td><td>'+fmt(r.avg,1)+'</td><td><button class="sm" data-i="'+idx+'" aria-label="この記録を削除">削除</button></td></tr>'});
+  el.innerHTML=t+'</table>';
+ }
+ $('hist').addEventListener('click',function(e){var i=e.target.getAttribute&&e.target.getAttribute('data-i');if(i==null)return;if(!confirm('この記録を削除しますか。'))return;var h=load(HKEY,[]);h.splice(+i,1);store(HKEY,h);hist()});
+ $('save').onclick=function(){
+  if(!last||last.use==null||last.days==null){say('使用電力量と点検間隔が出てから、記録してください。','bad');return}
+  var h=load(HKEY,[]);h.push({cd:last.cd,pd:last.pd,use:last.use,mx:last.mx,days:last.days,avg:last.avg});store(HKEY,h);
+  $('prv').value=$('cur').value;$('pd').value=$('cd').value;$('cur').value='';$('cd').value='';$('dem').value='';
+  calc();hist();say('記録しました。来月は、今回の欄を入れてください。','ok');
+ };
+ hist();calc();
+})();
+</script>
+</body>
+</html>
