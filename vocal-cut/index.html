@@ -79,6 +79,10 @@ details p,details li{font-size:14px;color:var(--mut);margin:.5em 0}
    <label><input type="radio" name="mode" value="cut" checked><span>声を消す<small>カラオケにする</small></span></label>
    <label><input type="radio" name="mode" value="only"><span>声だけ残す<small>真ん中の音を取り出す</small></span></label>
   </div>
+  <div class="modes" role="radiogroup" aria-label="方式" style="margin-top:12px">
+   <label><input type="radio" name="algo" value="freq" checked><span>くわしく<small>周波数ごと。他の楽器が壊れにくい</small></span></label>
+   <label><input type="radio" name="algo" value="simple"><span>かんたん<small>左右の引き算(速い)</small></span></label>
+  </div>
   <div class="ctl"><div class="t"><span id="strLabel">消す強さ</span><b id="strVal">100%</b></div><input type="range" id="str" min="0" max="100" value="100" aria-labelledby="strLabel"></div>
   <label class="chk" id="bassRow"><input type="checkbox" id="bass" checked>低い音(ベース・キック)を残す</label>
   <div class="ctl" id="bassCtl"><div class="t"><span id="fcLabel">低い音として残す範囲</span><b id="fcVal">150 Hz 以下</b></div><input type="range" id="fc" min="60" max="300" step="10" value="150" aria-labelledby="fcLabel"></div>
@@ -95,8 +99,9 @@ details p,details li{font-size:14px;color:var(--mut);margin:.5em 0}
    <li>「作る」を押して、聞いて確かめます。声が残るときは、「消す強さ」を上げます。ベースまで薄くなるときは、「低い音を残す」を入れます。</li>
    <li>よければ「WAV で保存」を押します。MPC には、この WAV を入れてください。</li>
   </ol>
-  <p><b>しくみ</b>: 多くの曲では、歌声は、左右の真ん中に録られています。左と右で同じ音を引き算すると、真ん中の音だけが消えます。AI で分けているのではありません。</p>
+  <p><b>しくみ</b>: 多くの曲では、歌声は、左右の真ん中に録られています。「かんたん」は、左と右を引き算して、真ん中の音を消します。「くわしく」は、周波数の1本ずつについて、左右が同じ音かを調べて、真ん中の成分だけを消します。左右に振られたギターなどが、壊れにくいのが長所です。どちらも AI ではないので、声に響き(リバーブ)がついていると、その響きの部分は、消えずに残ります。</p>
   <p><b>できないこと</b>: ギターだけ、ドラムだけ、のように楽器ごとに分けることは、できません。ボーカルがステレオで広がっている曲や、モノラルの曲は、うまく消えません。完全には消えず、薄く残ることが多いです。</p>
+  <p>声をもっときれいに抜きたいときや、ギターだけを取り出したいときは、AI を使う別のツール(このMacの中だけで動くもの)が必要です。</p>
   <p>ファイルは、この端末の中だけで処理します。どこにも送られません。自分で楽しむ範囲で使ってください。曲の著作権に、気をつけてください。</p>
  </details>
 </main>
@@ -133,6 +138,53 @@ details p,details li{font-size:14px;color:var(--mut);margin:.5em 0}
   return {L:oL,R:oR,mono:eS<1e-9*(eM+1e-12)||eS<1e-6*eM};
  }
  window.__vc={process:process};
+ /* ---- 周波数ごとの処理(STFT)。「真ん中らしさ」を、周波数の1本ずつ測って、消す ---- */
+ var N=4096,HOP=1024,WIN=new Float64Array(N);for(var wi=0;wi<N;wi++)WIN[wi]=0.5-0.5*Math.cos(2*Math.PI*wi/N);
+ var TW=null;
+ function fft(re,im,inv){
+  var n=re.length,i,j,k,t;
+  for(i=1,j=0;i<n;i++){var bit=n>>1;for(;j&bit;bit>>=1)j^=bit;j^=bit;if(i<j){t=re[i];re[i]=re[j];re[j]=t;t=im[i];im[i]=im[j];im[j]=t}}
+  if(!TW){TW={c:new Float64Array(n/2),s:new Float64Array(n/2)};for(i=0;i<n/2;i++){TW.c[i]=Math.cos(2*Math.PI*i/n);TW.s[i]=Math.sin(2*Math.PI*i/n)}}
+  for(var len=2;len<=n;len<<=1){var h=len>>1,st=n/len;
+   for(i=0;i<n;i+=len)for(k=0;k<h;k++){var wr=TW.c[k*st],wi2=inv?TW.s[k*st]:-TW.s[k*st],a=i+k,b=a+h,xr=re[b]*wr-im[b]*wi2,xi=re[b]*wi2+im[b]*wr;re[b]=re[a]-xr;im[b]=im[a]-xi;re[a]+=xr;im[a]+=xi}}
+ }
+ function smooth(x,a,b){return x<=a?0:x>=b?1:(x=(x-a)/(b-a),x*x*(3-2*x))}
+ // o: mode, strength 0..1, bass, fc
+ function processFreq(L,R,sr,o){
+  var n=L.length,pad=N,len=n+2*pad,oL=new Float32Array(n),oR=new Float32Array(n);
+  var aL=new Float64Array(len),aR=new Float64Array(len),yL=new Float64Array(len),yR=new Float64Array(len);
+  aL.set(L,pad);aR.set(R,pad);
+  var lr=new Float64Array(N),li=new Float64Array(N),rr=new Float64Array(N),ri=new Float64Array(N),H=N/2,psi=new Float64Array(H+1),sm=new Float64Array(H+1);
+  var hz=sr/N,wBass=new Float64Array(H+1),wBand=new Float64Array(H+1),eM=0,eS=0;
+  for(var b=0;b<=H;b++){var f=b*hz;wBass[b]=1-smooth(f,o.fc*0.8,o.fc*1.25);wBand[b]=smooth(f,120,260)*(1-smooth(f,5500,9000))}
+  var sharp=1+2*o.strength; // 強さを上げると、真ん中の判定が厳しく、よく消える側に寄る
+  for(var p=0;p+N<=len;p+=HOP){
+   for(var i=0;i<N;i++){lr[i]=aL[p+i]*WIN[i];li[i]=0;rr[i]=aR[p+i]*WIN[i];ri[i]=0}
+   fft(lr,li,false);fft(rr,ri,false);
+   for(b=0;b<=H;b++){var pl=lr[b]*lr[b]+li[b]*li[b],pr=rr[b]*rr[b]+ri[b]*ri[b],cr=lr[b]*rr[b]+li[b]*ri[b];
+    // 左右が、同じ大きさ・同じ位相なら 1 に近い
+    psi[b]=(pl+pr)>1e-18?Math.max(0,2*cr/(pl+pr)):0}
+   for(b=0;b<=H;b++){var s0=0,c=0;for(var d=-2;d<=2;d++){var q=b+d;if(q>=0&&q<=H){s0+=psi[q];c++}}sm[b]=s0/c}
+   for(b=0;b<=H;b++){
+    var cen=Math.pow(sm[b],sharp),gl,gr,mr=(lr[b]+rr[b])/2,mi=(li[b]+ri[b])/2;
+    if(o.mode==='cut'){ // 真ん中の成分を、引く(両方に同じ割合の窓をかける)
+     var k2=o.strength*cen*(o.bass?(1-wBass[b]):1);
+     lr[b]*=1-k2;li[b]*=1-k2;rr[b]*=1-k2;ri[b]*=1-k2;
+    }else{ // 真ん中の成分だけ残す
+     var kk=(o.strength*cen+(1-o.strength))*wBand[b];
+     lr[b]=mr*kk;li[b]=mi*kk;rr[b]=lr[b];ri[b]=li[b];
+    }
+    if(b>0&&b<H){lr[N-b]=lr[b];li[N-b]=-li[b];rr[N-b]=rr[b];ri[N-b]=-ri[b]}
+   }
+   fft(lr,li,true);fft(rr,ri,true);
+   for(i=0;i<N;i++){yL[p+i]+=lr[i]/N*WIN[i];yR[p+i]+=rr[i]/N*WIN[i]}
+  }
+  var sc=1/1.5; // Hann窓どうしを、1/4ずつずらして足したときの大きさ
+  for(var j=0;j<n;j++){oL[j]=yL[pad+j]*sc;oR[j]=yR[pad+j]*sc;var m=(L[j]+R[j])/2,s=(L[j]-R[j])/2;eM+=m*m;eS+=s*s}
+  return {L:oL,R:oR,mono:eS<1e-6*eM};
+ }
+ window.__vc.processFreq=processFreq;
+
 
  function wav(L,R,sr){
   var n=L.length,buf=new ArrayBuffer(44+n*4),v=new DataView(buf),p=0,peak=0;
@@ -185,7 +237,7 @@ details p,details li{font-size:14px;color:var(--mut);margin:.5em 0}
   setTimeout(function(){
    try{
     var o={mode:mode(),strength:$('str').value/100,bass:$('bass').checked,fc:+$('fc').value};
-    var r=process(src.L,src.R,src.sr,o);
+    var r=document.querySelector('input[name=algo]:checked').value==='freq'?processFreq(src.L,src.R,src.sr,o):process(src.L,src.R,src.sr,o);
     outBlob=wav(r.L,r.R,src.sr);
     if($('res').dataset.u)URL.revokeObjectURL($('res').dataset.u);
     var u=URL.createObjectURL(outBlob);$('res').dataset.u=u;$('res').src=u;
