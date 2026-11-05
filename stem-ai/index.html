@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="AIで分ける">
+<meta name="robots" content="noindex,nofollow">
 <link rel="icon" type="image/svg+xml" href="../icons/stem-ai.svg">
 <link rel="apple-touch-icon" href="icon-180.png">
 <title>AIで楽器ごとに分ける</title>
@@ -53,7 +54,7 @@ details p,details li{font-size:14px;color:var(--mut);margin:.5em 0}
 </head>
 <body>
 <main>
- <header><img src="../icons/stem-ai.svg" alt="" width="52" height="52"><div><h1>AIで楽器ごとに分ける</h1><a class="back" href="../private/">← プライベートに戻る</a></div></header>
+ <header><img src="../icons/stem-ai.svg" alt="" width="52" height="52"><div><h1>AIで楽器ごとに分ける</h1></div></header>
 
  <section class="card">
   <h2>1. 曲を選ぶ</h2>
@@ -95,7 +96,7 @@ details p,details li{font-size:14px;color:var(--mut);margin:.5em 0}
    <li>曲のファイルを選びます。</li>
    <li>作りたいものに、チェックを入れます。選ぶ数が少ないほど、メモリを使いません。</li>
    <li>まず「最初の30秒だけ、ためす」で、仕上がりを確かめるのがおすすめです。</li>
-   <li>「分ける」を押して、待ちます。できたら、聞いて、「WAV で保存」を押します。MPC には、この WAV を入れてください。</li>
+   <li>「分ける」を押して、待ちます。<b>待っているあいだは、このページを開いたままにしてください。</b>iPhone では、別のアプリを開いたり、画面を消したりすると、止まります(処理中は、画面が消えないようにしています)。パソコンでは、別のアプリを使っていても、続きます。できたら、聞いて、「WAV で保存」を押します。MPC には、この WAV を入れてください。</li>
   </ol>
   <p><b>はじめて使うとき</b>は、AI のモデル(約130MB)をダウンロードします。2回目からは、この端末に残っているので、すぐ始まります。</p>
   <p><b>時間</b>は、端末によって大きく違います。パソコンなら、曲の長さの数倍かかることがあります。スマホは、もっと遅く、メモリが足りなくて止まることもあります。長い曲は、パソコンでやってください。</p>
@@ -117,6 +118,11 @@ const LABEL={vocals:["ボーカル","歌声だけ"],no_vocals:["声なし(カラ
 const ORDER=["vocals","no_vocals","guitar","no_guitar","drums","bass","piano","other"];
 let song=null, session=null, stopFlag=false, urls=[];
 
+const yieldNow=()=>new Promise(r=>{const c=new MessageChannel();c.port1.onmessage=()=>{c.port1.close();r()};c.port2.postMessage(0)});
+let wake=null;
+const keepAwake=async()=>{try{if(navigator.wakeLock)wake=await navigator.wakeLock.request("screen")}catch(e){wake=null}};
+const letSleep=()=>{try{if(wake)wake.release()}catch(e){}wake=null};
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&$("go").disabled)keepAwake()});
 const say=(id,t,k)=>{const e=$(id);e.textContent=t;e.className="msg"+(k?" "+k:"")};
 const mmss=(s)=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+"分"+String(s%60).padStart(2,"0")+"秒"};
 const pickedNames=()=>[...document.querySelectorAll("#chks input:checked")].map(i=>i.value);
@@ -168,7 +174,7 @@ function wavBlob(parts,n){
 
 async function run(){
  const names=pickedNames();if(!names.length){say("msg","作るものを、1つ以上選んでください。","bad");return}
- stopFlag=false;$("go").disabled=true;$("stop").hidden=false;$("resCard").hidden=true;$("barwrap").hidden=false;$("fill").style.width="0";
+ stopFlag=false;keepAwake();$("go").disabled=true;$("stop").hidden=false;$("resCard").hidden=true;$("barwrap").hidden=false;$("fill").style.width="0";
  urls.forEach(URL.revokeObjectURL);urls=[];
  try{
   const sess=await getModel();
@@ -203,7 +209,7 @@ async function run(){
    const el=(performance.now()-t0)/1000,p=(i+1)/nCh;
    $("fill").style.width=(p*100)+"%";
    say("msg","分けています… "+(i+1)+" / "+nCh+(i>0||nCh===1?" ・ 残り約 "+mmss(el/p-el):" ・ はじめは、準備で時間がかかります"));
-   await new Promise(r=>setTimeout(r,0));
+   await yieldNow();
   }
   const html=[];
   ORDER.filter(n=>names.includes(n)).forEach(n=>{
@@ -217,7 +223,7 @@ async function run(){
   if(e.message==="stop")say("msg","やめました。");
   else{console.error(e);say("msg","うまくいきませんでした: "+(e.message||e)+"。曲が長すぎるか、メモリが足りないかもしれません。「ためす」で、短くしてください。","bad")}
  }
- $("go").disabled=false;$("stop").hidden=true;
+ letSleep();$("go").disabled=false;$("stop").hidden=true;
 }
 $("go").onclick=run;$("stop").onclick=()=>{stopFlag=true};
 $("pick").onclick=()=>$("file").click();
