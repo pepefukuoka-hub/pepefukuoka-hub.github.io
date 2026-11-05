@@ -7,6 +7,7 @@
 | https://pepefukuoka-hub.github.io/music/ | 音楽ツール(配る入口。QR コードも、これを指す) |
 | https://pepefukuoka-hub.github.io/music/stem-ai/ | AIで楽器ごとに分ける |
 | https://pepefukuoka-hub.github.io/music/video-audio/ | 動画から音を取り出す |
+| https://pepefukuoka-hub.github.io/music/cut/ | 音と動画を切り取る(動画の編集エンジンは、/douga-cut/vendor/ を使う。そこも動かさない) |
 | https://pepefukuoka-hub.github.io/stem-ai/ | 古い住所。上へ自動で移す(消さない) |
 | https://pepefukuoka-hub.github.io/video-audio/ | 古い住所。上へ自動で移す(消さない) |
 | https://pepefukuoka-hub.github.io/ , /private/ , /work/ | ハブ |

@@ -3,7 +3,7 @@
 #   live を付けると、実際の公開ページも、取得して確かめる
 cd "$(dirname "$0")/.." || exit 1
 BASE=https://pepefukuoka-hub.github.io
-PATHS="music/ music/stem-ai/ music/video-audio/ stem-ai/ video-audio/ private/ work/ music/qr.svg"
+PATHS="music/ music/stem-ai/ music/video-audio/ music/cut/ stem-ai/ video-audio/ private/ work/ music/qr.svg"
 bad=0
 for p in $PATHS; do
   f="$p"; [[ "$p" == */ ]] && f="${p}index.html"

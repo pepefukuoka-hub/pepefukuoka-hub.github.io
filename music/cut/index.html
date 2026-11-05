@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex,nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="切り取り">
+<link rel="icon" type="image/svg+xml" href="../../icons/cut.svg">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>音と動画を切り取る</title>
+<style>
+:root{--bg:#0b1020;--card:rgba(255,255,255,.06);--fg:#f1f4ff;--mut:#9aa5c4;--line:rgba(255,255,255,.12);--ac:#fbbf24;--ac2:#ef4444;--bad:#ff8a80;--ok:#6ee7b7}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg)}
+body{color:var(--fg);font:16px/1.6 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+ padding:max(20px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(48px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:radial-gradient(60vmax 60vmax at 0% 0%,rgba(251,191,36,.2),transparent 60%),radial-gradient(50vmax 50vmax at 100% 100%,rgba(239,68,68,.18),transparent 60%)}
+main{max-width:680px;margin:0 auto;display:grid;gap:14px}
+header{display:flex;gap:12px;align-items:center}
+header img{width:52px;height:52px;border-radius:13px}
+h1{margin:0;font-size:22px;line-height:1.2}
+.back{font-size:13px;color:var(--mut);text-decoration:none}
+.hero{margin:2px 0 0;color:var(--mut);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+h2{margin:0 0 12px;font-size:14px;display:flex;align-items:center;gap:10px}
+h2 .n{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--ac),var(--ac2));font-size:13px;color:#1a0b00;flex:none}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:22px 12px;text-align:center;display:grid;gap:8px;justify-items:center}
+.drop.over{border-color:var(--ac)}
+button,a.btn{font:inherit;font-weight:700;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.08);color:var(--fg);padding:8px 12px;min-height:44px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+button.pri,a.btn.pri{background:linear-gradient(135deg,var(--ac),var(--ac2));border:0;color:#1a0b00;min-height:48px;padding:10px 20px}
+button.sm{min-height:38px;font-size:13px;padding:6px 10px;font-weight:600}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,a.btn:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.msg{margin:6px 0 0;font-size:14px;color:var(--mut)}.msg.bad{color:var(--bad)}.msg.ok{color:var(--ok)}
+video,audio{width:100%;border-radius:12px;background:#000;max-height:46vh}
+audio{background:none}
+.times{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;text-align:center}
+.times div{background:rgba(255,255,255,.05);border-radius:10px;padding:6px}
+.times span{display:block;font-size:12px;color:var(--mut)}.times b{font-size:18px;font-variant-numeric:tabular-nums}
+.rng{position:relative;margin-top:12px}
+canvas{width:100%;height:76px;display:block;border-radius:12px;background:rgba(255,255,255,.05)}
+.cover{position:absolute;left:0;right:0;top:0;height:76px;pointer-events:none;border-radius:12px;overflow:hidden}
+.cover i{position:absolute;top:0;bottom:0;background:rgba(11,16,32,.7)}
+.cover i.mid{background:rgba(239,68,68,.35);border-left:2px solid var(--ac2);border-right:2px solid var(--ac2)}
+.cover b{position:absolute;top:0;bottom:0;width:2px;background:#fff;left:0}
+input[type=range]{width:100%;accent-color:var(--ac);min-height:32px;margin:2px 0 0}
+.lab{font-size:13px;color:var(--mut);margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap}
+.nudge{display:flex;gap:6px;flex-wrap:wrap}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.row>*{flex:1}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modes label{display:block;cursor:pointer}
+.modes input{position:absolute;opacity:0}
+.modes span{display:block;padding:10px;border:1px solid var(--line);border-radius:14px;text-align:center;font-weight:700;background:rgba(255,255,255,.04)}
+.modes small{display:block;font-weight:400;color:var(--mut);font-size:12px;line-height:1.4}
+.modes input:checked+span{border-color:var(--ac);background:rgba(251,191,36,.15)}
+.modes input:focus-visible+span{outline:3px solid #fff}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+label.f{display:grid;gap:4px;font-size:13px;color:var(--mut)}
+select{font:inherit;font-size:15px;color:var(--fg);background:#161c33;border:1px solid var(--line);border-radius:10px;padding:10px;min-height:44px}
+.chk{display:flex;gap:10px;align-items:center;margin-top:12px;font-size:14px}
+.chk input{width:20px;height:20px;accent-color:var(--ac)}
+progress{width:100%;height:10px;margin-top:10px;accent-color:var(--ac)}
+details{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
+summary{cursor:pointer;font-weight:700}
+details p,details li{font-size:14px;color:var(--mut);margin:.5em 0}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+ <header><img src="../../icons/cut.svg" alt="" width="52" height="52"><div><a class="back" href="../">← 音楽ツール</a><h1>音と動画を切り取る</h1><p class="hero">音楽でも動画でも、いらない所を切って、保存します。端末の外には出ません。</p></div></header>
+
+ <section class="card">
+  <h2><span class="n">1</span>ファイルを選ぶ</h2>
+  <div class="drop" id="drop">
+   <button type="button" class="pri" id="pick">音楽か動画のファイルを選ぶ</button>
+   <span class="msg" style="margin:0">mp3・m4a・wav・mp4・mov・webm など。ここにドラッグしても入れられます。</span>
+   <input id="file" type="file" accept="audio/*,video/*,.mp3,.m4a,.wav,.aac,.ogg,.flac,.mp4,.mov,.m4v,.webm" hidden>
+  </div>
+  <p class="msg" id="loadmsg" role="status"></p>
+ </section>
+
+ <section class="card" id="ed" hidden>
+  <h2><span class="n">2</span>切り取る所を決める</h2>
+  <div id="mwrap"></div>
+  <div class="row"><button type="button" id="playAll" class="sm">全体を再生</button><button type="button" id="playSel" class="sm">決めた所を、確かめる</button></div>
+  <div class="rng">
+   <canvas id="wave" width="1200" height="152" aria-label="音の大きさの波形"></canvas>
+   <div class="cover"><i id="cL" style="left:0;width:0"></i><i id="cM" class="mid" style="left:0;width:0" hidden></i><i id="cR" style="right:0;width:0"></i><b id="head"></b></div>
+  </div>
+  <div class="lab"><span>開始の位置</span><div class="nudge"><button type="button" class="sm" data-n="s" data-d="-1">−1秒</button><button type="button" class="sm" data-n="s" data-d="-0.1">−0.1</button><button type="button" class="sm" data-n="s" data-d="0.1">+0.1</button><button type="button" class="sm" data-n="s" data-d="1">+1秒</button></div></div>
+  <input type="range" id="s" min="0" max="10000" value="0" aria-label="開始の位置">
+  <div class="lab"><span>終了の位置</span><div class="nudge"><button type="button" class="sm" data-n="e" data-d="-1">−1秒</button><button type="button" class="sm" data-n="e" data-d="-0.1">−0.1</button><button type="button" class="sm" data-n="e" data-d="0.1">+0.1</button><button type="button" class="sm" data-n="e" data-d="1">+1秒</button></div></div>
+  <input type="range" id="e" min="0" max="10000" value="10000" aria-label="終了の位置">
+  <div class="row"><button type="button" class="sm" id="setS">いまの再生位置を、開始にする</button><button type="button" class="sm" id="setE">いまの再生位置を、終了にする</button></div>
+  <div class="times"><div><span>開始</span><b id="tS">0:00.0</b></div><div><span>終了</span><b id="tE">0:00.0</b></div><div><span>残る長さ</span><b id="tL">0:00.0</b></div></div>
+ </section>
+
+ <section class="card" id="out" hidden>
+  <h2><span class="n">3</span>切り方と、保存の形式</h2>
+  <div class="modes" role="radiogroup" aria-label="切り方">
+   <label><input type="radio" name="mode" value="keep" checked><span>この範囲を、残す<small>前後を切り捨てる</small></span></label>
+   <label><input type="radio" name="mode" value="cut"><span>この範囲を、消す<small>前後を、つなげる</small></span></label>
+  </div>
+  <div class="grid">
+   <label class="f" id="whatRow" hidden>保存するもの<select id="what"><option value="video">動画</option><option value="audio">音だけ</option></select></label>
+   <label class="f" id="aRow">音の形式<select id="fmt"><option value="wav">WAV(音質そのまま・大きい)</option><option value="mp3">MP3(小さい)</option></select></label>
+   <label class="f" id="brRow" hidden>MP3 の音質<select id="br"><option value="128">128 kbps</option><option value="192" selected>192 kbps</option><option value="320">320 kbps</option></select></label>
+   <label class="f" id="vRow" hidden>動画の切り方<select id="vmode"><option value="exact">きっちり(正確。時間がかかる)</option><option value="fast">はやい(画質そのまま。開始が、前にずれることがある)</option></select></label>
+  </div>
+  <label class="chk" id="fadeRow"><input type="checkbox" id="fade">はじめと終わりを、ふわっとさせる(音だけ・0.3秒)</label>
+  <div class="row"><button type="button" class="pri" id="go">切り取って、つくる</button></div>
+  <progress id="prog" max="100" value="0" hidden></progress>
+  <p class="msg" id="msg" role="status"></p>
+  <div id="done" hidden>
+   <div id="owrap"></div>
+   <div class="row"><a class="btn pri" id="dl" download>保存する</a><button type="button" id="share" hidden>共有(写真アプリなどへ)</button></div>
+   <p class="msg" id="info"></p>
+  </div>
+ </section>
+
+ <details>
+  <summary>使い方と、注意すること</summary>
+  <ol>
+   <li>音楽か動画のファイルを選びます。</li>
+   <li>「開始」と「終了」を動かして、残したい所(または、消したい所)を決めます。細かく合わせるときは、−0.1 や +0.1 のボタンを使います。再生しながら「いまの再生位置を、開始(終了)にする」でも決められます。</li>
+   <li>「決めた所を、確かめる」で聞いて(見て)、確かめます。「消す」を選んだときは、つなぎ目の少し前から再生します。</li>
+   <li>「切り取って、つくる」を押して、できたものを保存します。</li>
+  </ol>
+  <p><b>音楽(音のファイル)</b>は、WAV か MP3 で保存します。WAV は音質そのまま、MP3 は小さくなります。</p>
+  <p><b>動画</b>は、「きっちり」だと、指定した所で正確に切れます。ただ、作り直すので、時間がかかります。「はやい」は、画質を落とさず、すぐできます。ただ、動画の区切りの位置によっては、開始が前にずれます(区切りが少ない動画だと、大きくずれます)。「この範囲を消す」は、必ず「きっちり」になります。</p>
+  <p>動画からの音だけを、保存することもできます(「保存するもの」で選びます)。</p>
+  <p>ファイルは、この端末の中だけで処理します。どこにも送られません。大きな動画は、止まることがあります。そのときは、短くしてから試してください。</p>
+  <p>自分で楽しむ範囲で使ってください。曲や動画の著作権に、気をつけてください。</p>
+ </details>
+</main>
+<script>
+(function(){
+ var $=function(i){return document.getElementById(i)};
+ var SR=44100,F=null,kind='audio',media=null,mediaUrl=null,buf=null,dur=0,outUrls=[],busy=false,ff=null;
+ var VENDOR='/douga-cut/vendor/'; // 前に作った「動画カット」の、編集エンジンを使う
+ function say(id,t,k){var e=$(id);e.textContent=t;e.className='msg'+(k?' '+k:'')}
+ function tfmt(s){s=Math.max(0,s);var m=Math.floor(s/60);return m+':'+(s-m*60).toFixed(1).padStart(4,'0')}
+ function sec(v){return Number(v)/10000*dur}
+ function mode(){return document.querySelector('input[name=mode]:checked').value}
+ function sizeText(n){return n>=1048576?(n/1048576).toFixed(1)+' MB':Math.round(n/1024)+' KB'}
+ function ext(n){return((n.match(/\.([a-z0-9]+)$/i)||[])[1]||'').toLowerCase()}
+ function loadScript(src){return new Promise(function(ok,ng){var s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=function(){ng(new Error('部品を読み込めませんでした'))};document.head.appendChild(s)})}
+
+ /* ---- 範囲 ---- */
+ function span(){var a=sec($('s').value),b=sec($('e').value);return a<=b?[a,b]:[b,a]}
+ function paint(){
+  var r=span(),d=dur||1;
+  $('tS').textContent=tfmt(r[0]);$('tE').textContent=tfmt(r[1]);
+  var keep=mode()==='keep';$('tL').textContent=tfmt(keep?r[1]-r[0]:dur-(r[1]-r[0]));
+  $('cL').style.width=keep?(r[0]/d*100)+'%':'0';$('cR').style.width=keep?((d-r[1])/d*100)+'%':'0';
+  $('cM').hidden=keep;if(!keep){$('cM').style.left=(r[0]/d*100)+'%';$('cM').style.width=((r[1]-r[0])/d*100)+'%'}
+ }
+ ['s','e'].forEach(function(i){$(i).addEventListener('input',paint)});
+ document.querySelectorAll('input[name=mode]').forEach(function(r){r.addEventListener('change',function(){paint();syncOut()})});
+ document.querySelectorAll('.nudge button').forEach(function(b){b.onclick=function(){
+  var el=$(b.dataset.n),v=sec(el.value)+Number(b.dataset.d);v=Math.max(0,Math.min(dur,v));el.value=Math.round(v/dur*10000);paint();
+  if(media){media.currentTime=Math.min(Math.max(0,v),dur-0.01)}
+ }});
+ $('setS').onclick=function(){if(media){$('s').value=Math.round(media.currentTime/dur*10000);paint()}};
+ $('setE').onclick=function(){if(media){$('e').value=Math.round(media.currentTime/dur*10000);paint()}};
+
+ /* ---- 再生 ---- */
+ var guard=null;
+ function stopGuard(){if(guard){media.removeEventListener('timeupdate',guard);guard=null}}
+ $('playAll').onclick=function(){if(!media)return;stopGuard();if(media.paused)media.play();else media.pause()};
+ $('playSel').onclick=function(){
+  if(!media)return;stopGuard();var r=span();
+  if(mode()==='keep'){
+   media.currentTime=r[0];guard=function(){if(media.currentTime>=r[1]){media.pause();stopGuard()}};
+  }else{ // 消す: つなぎ目の少し前から。消す範囲は、飛ばす
+   media.currentTime=Math.max(0,r[0]-3);guard=function(){var t=media.currentTime;if(t>=r[0]&&t<r[1])media.currentTime=r[1];if(t>=Math.min(dur,r[1]+3)){media.pause();stopGuard()}};
+  }
+  media.addEventListener('timeupdate',guard);media.play();
+ };
+ function tick(){if(media&&dur)$('head').style.left=(media.currentTime/dur*100)+'%';requestAnimationFrame(tick)}
+ requestAnimationFrame(tick);
+
+ /* ---- 読み込み ---- */
+ function wave(){
+  var c=$('wave'),g=c.getContext('2d'),W=c.width,H=c.height;g.clearRect(0,0,W,H);
+  if(!buf){g.fillStyle='rgba(255,255,255,.25)';g.font='28px sans-serif';g.fillText('(波形は、出せませんでした)',20,H/2+8);return}
+  var L=buf.getChannelData(0),R=buf.numberOfChannels>1?buf.getChannelData(1):L,step=Math.max(1,Math.floor(L.length/W));g.fillStyle='#fbbf24';
+  for(var x=0;x<W;x++){var mx=0,i0=x*step,i1=Math.min(L.length,i0+step);
+   for(var i=i0;i<i1;i+=Math.max(1,step>>5)){var v=Math.max(Math.abs(L[i]),Math.abs(R[i]));if(v>mx)mx=v}
+   var h=Math.max(2,mx*H*0.9);g.fillRect(x,(H-h)/2,1,h)}
+ }
+ async function load(f){
+  if(busy){return}
+  say('loadmsg','読み込んでいます…');$('ed').hidden=true;$('out').hidden=true;$('done').hidden=true;stopGuard();
+  F=f;buf=null;
+  var isVideo=/^video\//.test(f.type)||/\.(mp4|mov|m4v|webm|mkv)$/i.test(f.name);
+  kind=isVideo?'video':'audio';
+  if(mediaUrl)URL.revokeObjectURL(mediaUrl);mediaUrl=URL.createObjectURL(f);
+  var el=document.createElement(isVideo?'video':'audio');el.controls=true;el.playsInline=true;el.preload='metadata';el.src=mediaUrl;
+  $('mwrap').textContent='';$('mwrap').appendChild(el);media=el;
+  var ok=await new Promise(function(r){el.onloadedmetadata=function(){r(true)};el.onerror=function(){r(false)}});
+  if(!ok||!isFinite(el.duration)){say('loadmsg','このファイルは、読み込めませんでした。mp3・wav・mp4 などで試してください。','bad');return}
+  dur=el.duration;
+  if(f.size<300*1048576){ // 波形のために、音を読み込む
+   try{var ab=await f.arrayBuffer(),ctx=new (window.OfflineAudioContext||window.webkitOfflineAudioContext)(2,1,SR);
+    buf=await new Promise(function(a,b){var p=ctx.decodeAudioData(ab,a,b);if(p&&p.catch)p.catch(b)})}catch(e){buf=null}
+  }
+  $('s').value=0;$('e').value=10000;wave();paint();
+  $('ed').hidden=false;$('out').hidden=false;syncOut();
+  say('loadmsg',f.name+'('+(isVideo?'動画':'音')+'・長さ '+tfmt(dur)+')','ok');
+ }
+ function syncOut(){
+  var v=kind==='video',what=$('what').value,audioOut=!v||what==='audio';
+  $('whatRow').hidden=!v||!buf;$('aRow').hidden=!audioOut;$('brRow').hidden=!audioOut||$('fmt').value!=='mp3';
+  $('vRow').hidden=audioOut;$('fadeRow').hidden=!audioOut;
+  var cut=mode()==='cut';$('vmode').disabled=cut;
+  if(v&&cut&&!audioOut)say('msg','「消す」を選んだ動画は、「きっちり」で作ります(時間がかかります)。');else if($('msg').textContent.indexOf('きっちり')>=0)say('msg','');
+ }
+ ['what','fmt'].forEach(function(i){$(i).addEventListener('change',syncOut)});
+
+ /* ---- 音の書き出し ---- */
+ function i16(x){x=x>1?1:x<-1?-1:x;return x<0?x*32768:x*32767}
+ function segments(){var r=span();return mode()==='keep'?[[r[0],r[1]]]:[[0,r[0]],[r[1],dur]].filter(function(s){return s[1]-s[0]>0.001})}
+ function makeAudio(){
+  if(!buf)throw new Error('この動画の音を、読み込めませんでした');
+  var segs=segments(),L0=buf.getChannelData(0),R0=buf.numberOfChannels>1?buf.getChannelData(1):L0,n=0,i,parts=[];
+  segs.forEach(function(s){var a=Math.floor(s[0]*SR),b=Math.min(L0.length,Math.floor(s[1]*SR));parts.push([a,b]);n+=Math.max(0,b-a)});
+  if(n<SR/20)throw new Error('切り取った長さが、短すぎます');
+  var L=new Float32Array(n),R=new Float32Array(n),o=0;
+  parts.forEach(function(p,idx){var len=p[1]-p[0];L.set(L0.subarray(p[0],p[1]),o);R.set(R0.subarray(p[0],p[1]),o);
+   if(idx>0){var cf=Math.min(Math.floor(0.015*SR),len>>1,o>>1); // つなぎ目の、ぷつっという音を消す
+    for(i=0;i<cf;i++){var w=i/cf;L[o+i]*=w;R[o+i]*=w;L[o-1-i]*=w;R[o-1-i]*=w}}
+   o+=len});
+  if($('fade').checked){var fl=Math.min(Math.floor(0.3*SR),n>>1);for(i=0;i<fl;i++){var q=i/fl;L[i]*=q;R[i]*=q;L[n-1-i]*=q;R[n-1-i]*=q}}
+  return{L:L,R:R,n:n};
+ }
+ function wavBlob(d){
+  var h=new ArrayBuffer(44),v=new DataView(h),ws=function(o,s){for(var i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))},len=d.n*4;
+  ws(0,'RIFF');v.setUint32(4,36+len,true);ws(8,'WAVEfmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,2,true);v.setUint32(24,SR,true);v.setUint32(28,SR*4,true);v.setUint16(32,4,true);v.setUint16(34,16,true);ws(36,'data');v.setUint32(40,len,true);
+  var out=[h],CH=SR*10;
+  for(var s=0;s<d.n;s+=CH){var m=Math.min(CH,d.n-s),p=new Int16Array(m*2);for(var i=0;i<m;i++){p[i*2]=i16(d.L[s+i]);p[i*2+1]=i16(d.R[s+i])}out.push(p)}
+  return new Blob(out,{type:'audio/wav'});
+ }
+ var lameP=null;
+ function loadLame(){if(window.lamejs)return Promise.resolve();return lameP||(lameP=loadScript('https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js').catch(function(e){lameP=null;throw new Error('MP3 の部品を読み込めませんでした。WAV にするか、通信を確かめてください')}))}
+ async function mp3Blob(d,kbps){
+  await loadLame();var enc=new lamejs.Mp3Encoder(2,SR,kbps),out=[],B=1152*20;
+  for(var s=0;s<d.n;s+=B){var m=Math.min(B,d.n-s),l=new Int16Array(m),r=new Int16Array(m);
+   for(var i=0;i<m;i++){l[i]=i16(d.L[s+i]);r[i]=i16(d.R[s+i])}
+   var o=enc.encodeBuffer(l,r);if(o.length)out.push(new Uint8Array(o));
+   $('prog').value=Math.round(s/d.n*100);if((s/B)%10===0)await new Promise(function(a){setTimeout(a,0)})}
+  var e=enc.flush();if(e.length)out.push(new Uint8Array(e));return new Blob(out,{type:'audio/mpeg'});
+ }
+
+ /* ---- 動画の書き出し(ffmpeg) ---- */
+ async function getFF(){
+  if(ff)return ff;
+  if(!window.FFmpegWASM)await loadScript(VENDOR+'ffmpeg.js');
+  var f=new FFmpegWASM.FFmpeg();
+  f.on('progress',function(p){if(p.progress>=0&&p.progress<=1)$('prog').value=Math.round(p.progress*100)});
+  f.on('log',function(m){f._log=(f._log||[]).concat(m.message).slice(-12)});
+  await f.load({coreURL:location.origin+VENDOR+'ffmpeg-core.js',wasmURL:location.origin+VENDOR+'ffmpeg-core.wasm'});
+  ff=f;return f;
+ }
+ async function ffrun(f,args){f._log=[];var c=await f.exec(args);if(c!==0){var e=new Error('ffmpeg '+c);e.log=(f._log||[]).join('\n');throw e}}
+ async function makeVideo(){
+  var r=span(),webm=ext(F.name)==='webm',outName=webm?'out.webm':'out.mp4',cut=mode()==='cut',exact=cut||$('vmode').value==='exact';
+  say('msg','編集の部品を、準備しています(はじめは少し待ちます)…');
+  var f=await getFF(),inF=new File([F],'in.'+(ext(F.name)||'mp4'),{type:F.type}),mounted=false;
+  try{
+   await f.createDir('/v');await f.mount('WORKERFS',{files:[inF]},'/v');mounted=true;
+   var vc=exact?(webm?['-c:v','libvpx','-b:v','3M']:['-c:v','libx264','-preset','ultrafast','-crf','23','-pix_fmt','yuv420p']):['-c:v','copy'],
+       ac=webm?['-c:a','libopus']:['-c:a','aac','-b:a','192k'];
+   say('msg','切り取っています…');
+   if(!cut){
+    await ffrun(f,['-ss',String(r[0]),'-i','/v/'+inF.name,'-t',String(r[1]-r[0]),...vc,...(exact?ac:['-c:a','copy']),'-avoid_negative_ts','make_zero',outName]);
+   }else{
+    var S=r[0],E=r[1],hasA=!!buf,tr=function(withA){
+     var fc='[0:v]trim=end='+S+',setpts=PTS-STARTPTS[v0];[0:v]trim=start='+E+',setpts=PTS-STARTPTS[v1];';
+     if(withA){fc+='[0:a]atrim=end='+S+',asetpts=PTS-STARTPTS[a0];[0:a]atrim=start='+E+',asetpts=PTS-STARTPTS[a1];[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]'}
+     else fc+='[v0][v1]concat=n=2:v=1:a=0[v]';
+     return['-i','/v/'+inF.name,'-filter_complex',fc,'-map','[v]'].concat(withA?['-map','[a]']:[],vc,withA?ac:[],[outName])};
+    if(S<0.05){ // 先頭を消すだけ
+     await ffrun(f,['-ss',String(E),'-i','/v/'+inF.name,...vc,...ac,outName]);
+    }else if(E>dur-0.05){ // 末尾を消すだけ
+     await ffrun(f,['-t',String(S),'-i','/v/'+inF.name,...vc,...ac,outName]);
+    }else{
+     try{await ffrun(f,tr(hasA))}catch(e){if(!hasA)throw e;await ffrun(f,tr(false))}
+    }
+   }
+   var data=await f.readFile(outName);await f.deleteFile(outName);
+   return new Blob([data.buffer],{type:webm?'video/webm':'video/mp4'});
+  }finally{if(mounted){try{await f.unmount('/v')}catch(e){}try{await f.deleteDir('/v')}catch(e){}}}
+ }
+
+ /* ---- つくる ---- */
+ async function go(){
+  if(busy||!F)return;busy=true;$('go').disabled=true;$('done').hidden=true;$('prog').hidden=false;$('prog').value=0;
+  outUrls.forEach(URL.revokeObjectURL);outUrls=[];
+  try{
+   var v=kind==='video',audioOut=!v||$('what').value==='audio',blob,base=F.name.replace(/\.[^.]+$/,''),name,isVid=false;
+   if(audioOut){
+    say('msg','作っています…');var d=makeAudio(),fm=$('fmt').value;
+    blob=fm==='mp3'?await mp3Blob(d,+$('br').value):wavBlob(d);name=base+'_切り取り.'+(fm==='mp3'?'mp3':'wav');
+   }else{blob=await makeVideo();name=base+'_切り取り.'+(blob.type==='video/webm'?'webm':'mp4');isVid=true}
+   var u=URL.createObjectURL(blob);outUrls.push(u);
+   var el=document.createElement(isVid?'video':'audio');el.controls=true;el.playsInline=true;el.src=u;$('owrap').textContent='';$('owrap').appendChild(el);
+   $('dl').href=u;$('dl').download=name;
+   var file=new File([blob],name,{type:blob.type}),sh=$('share');sh.hidden=!(navigator.canShare&&navigator.canShare({files:[file]}));sh.onclick=function(){navigator.share({files:[file]}).catch(function(){})};
+   $('info').textContent=name+' ・ '+sizeText(blob.size);$('done').hidden=false;$('prog').value=100;say('msg','できました。聞いて(見て)、確かめてください。','ok');
+  }catch(e){
+   say('msg','うまくいきませんでした: '+(e&&e.message&&!/^ffmpeg/.test(e.message)?e.message:'この動画は、切り取れませんでした')+'。大きすぎるか、形式が合わないかもしれません。','bad');console.error(e);
+  }
+  $('prog').hidden=true;$('go').disabled=false;busy=false;
+ }
+ $('go').onclick=go;
+ $('fmt').addEventListener('change',function(){$('brRow').hidden=$('fmt').value!=='mp3'||$('aRow').hidden});
+ $('pick').onclick=function(){$('file').click()};
+ $('file').onchange=function(e){var f=e.target.files[0];e.target.value='';if(f)load(f)};
+ var dr=$('drop');
+ ['dragenter','dragover'].forEach(function(n){dr.addEventListener(n,function(e){e.preventDefault();dr.classList.add('over')})});
+ ['dragleave','drop'].forEach(function(n){dr.addEventListener(n,function(e){e.preventDefault();dr.classList.remove('over')})});
+ dr.addEventListener('drop',function(e){var f=e.dataTransfer&&e.dataTransfer.files[0];if(f)load(f)});
+ window.__cut={load:load,go:go};
+})();
+</script>
+</body>
+</html>
