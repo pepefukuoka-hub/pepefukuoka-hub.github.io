@@ -17,7 +17,7 @@
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg)}
 body{color:var(--fg);font:16px/1.6 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
- padding:max(20px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(48px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+ padding:calc(env(safe-area-inset-top, 0px) + 36px) max(16px,env(safe-area-inset-right)) max(48px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
 body::before{content:"";position:fixed;inset:0;z-index:-1;background:radial-gradient(60vmax 60vmax at 0% 0%,rgba(251,191,36,.2),transparent 60%),radial-gradient(50vmax 50vmax at 100% 100%,rgba(239,68,68,.18),transparent 60%)}
 main{max-width:680px;margin:0 auto;display:grid;gap:14px}
 header{display:flex;gap:12px;align-items:center}
