@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="音を取り出す">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="../../icons/video-audio.svg">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>動画から音を取り出す</title>
+<style>
+:root{--bg:#0b1020;--card:rgba(255,255,255,.06);--fg:#f1f4ff;--mut:#9aa5c4;--line:rgba(255,255,255,.12);--ac:#34d399;--ac2:#0ea5e9;--bad:#ff8a80;--ok:#6ee7b7}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg)}
+body{color:var(--fg);font:16px/1.6 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+ padding:max(20px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(48px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:radial-gradient(60vmax 60vmax at 0% 0%,rgba(14,165,233,.28),transparent 60%),radial-gradient(50vmax 50vmax at 100% 100%,rgba(52,211,153,.18),transparent 60%)}
+main{max-width:680px;margin:0 auto;display:grid;gap:14px}
+header{display:flex;gap:12px;align-items:center}
+header img{width:52px;height:52px;border-radius:13px}
+h1{margin:0;font-size:22px;line-height:1.2}
+.back{font-size:13px;color:var(--mut);text-decoration:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+h2{margin:0 0 10px;font-size:13px;color:var(--mut);letter-spacing:.12em}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:22px 12px;text-align:center;display:grid;gap:8px;justify-items:center}
+.drop.over{border-color:var(--ac)}
+button,a.btn{font:inherit;font-weight:700;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.08);color:var(--fg);padding:8px 14px;min-height:44px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+button.pri,a.btn.pri{background:linear-gradient(135deg,var(--ac),var(--ac2));border:0;color:#04201a;min-height:48px;padding:10px 20px}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,a.btn:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.msg{margin:6px 0 0;font-size:14px;color:var(--mut)}.msg.bad{color:var(--bad)}.msg.ok{color:var(--ok)}
+canvas{width:100%;height:84px;display:block;border-radius:12px;background:rgba(255,255,255,.05)}
+.sel{position:relative;margin-top:-84px;height:84px;pointer-events:none;border-radius:12px;overflow:hidden}
+.sel i{position:absolute;top:0;bottom:0;background:rgba(11,16,32,.65)}
+.sel b{position:absolute;top:0;bottom:0;width:2px;background:var(--ac)}
+.ctl{display:grid;gap:2px;margin-top:12px;font-size:14px}
+.ctl .t{display:flex;justify-content:space-between;color:var(--mut)}.ctl .t b{color:var(--fg);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ac);min-height:32px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+label.f{display:grid;gap:4px;font-size:13px;color:var(--mut)}
+select{font:inherit;font-size:16px;color:var(--fg);background:#161c33;border:1px solid var(--line);border-radius:10px;padding:10px;min-height:44px}
+.chk{display:flex;gap:10px;align-items:center;margin-top:12px;font-size:14px}
+.chk input{width:20px;height:20px;accent-color:var(--ac)}
+audio{width:100%;margin-top:10px}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.row>*{flex:1}
+.bar{height:8px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:10px}.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--ac),var(--ac2))}
+details{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
+summary{cursor:pointer;font-weight:700}
+details p,details li{font-size:14px;color:var(--mut);margin:.5em 0}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+ <header><img src="../../icons/video-audio.svg" alt="" width="52" height="52"><div><h1>動画から音を取り出す</h1><a class="back" href="../">← 音楽ツール</a></div></header>
+
+ <section class="card">
+  <h2>1. 動画を選ぶ</h2>
+  <div class="drop" id="drop">
+   <button type="button" class="pri" id="pick">動画のファイルを選ぶ</button>
+   <span class="msg" style="margin:0">mp4・mov・m4v・webm など。音声だけのファイルも使えます。ここにドラッグしても入れられます。</span>
+   <input id="file" type="file" accept="video/*,audio/*,.mp4,.mov,.m4v,.webm,.mkv,.m4a,.mp3,.wav" hidden>
+  </div>
+  <p class="msg" id="loadmsg" role="status"></p>
+  <div class="bar" id="lbar" hidden><i id="lfill"></i></div>
+ </section>
+
+ <section class="card" id="opts" hidden>
+  <h2>2. 取り出す部分と、形式を選ぶ</h2>
+  <canvas id="wave" width="1200" height="168" aria-label="音の大きさの波形"></canvas>
+  <div class="sel" aria-hidden="true"><i id="selL" style="left:0;width:0"></i><i id="selR" style="right:0;width:0"></i></div>
+  <div class="ctl"><div class="t"><span id="sLabel">はじめ</span><b id="sVal">0:00.0</b></div><input type="range" id="s" min="0" max="1000" value="0" aria-labelledby="sLabel"></div>
+  <div class="ctl"><div class="t"><span id="eLabel">おわり</span><b id="eVal">0:00.0</b></div><input type="range" id="e" min="0" max="1000" value="1000" aria-labelledby="eLabel"></div>
+  <div class="grid">
+   <label class="f">形式<select id="fmt"><option value="wav">WAV(音質そのまま・大きい)</option><option value="mp3">MP3(小さい)</option></select></label>
+   <label class="f" id="brRow" hidden>MP3 の音質<select id="br"><option value="128">128 kbps(ふつう)</option><option value="192" selected>192 kbps(きれい)</option><option value="320">320 kbps(最高)</option></select></label>
+  </div>
+  <label class="chk"><input type="checkbox" id="mono">モノラルにする(サイズが半分になります)</label>
+  <label class="chk"><input type="checkbox" id="norm">音量をそろえる(小さい音を大きくします)</label>
+  <label class="chk"><input type="checkbox" id="fade">はじめと終わりを、ふわっとさせる(0.3秒)</label>
+  <div class="row"><button type="button" id="prev">聞いてみる</button><button type="button" class="pri" id="go">3. 取り出す</button></div>
+  <p class="msg" id="msg" role="status"></p>
+  <div class="bar" id="pbar" hidden><i id="pfill"></i></div>
+  <div id="resbox" hidden>
+   <audio id="res" controls></audio>
+   <div class="row"><a class="btn pri" id="dl" download>保存する</a></div>
+   <p class="msg" id="info"></p>
+  </div>
+ </section>
+
+ <details>
+  <summary>使い方と、できること・できないこと</summary>
+  <ol>
+   <li>動画のファイルを選びます。</li>
+   <li>必要な部分だけ取り出したいときは、「はじめ」と「おわり」を動かします。「聞いてみる」で、確かめられます。</li>
+   <li>形式を選んで「取り出す」を押します。できたら「保存する」を押します。</li>
+  </ol>
+  <p><b>WAV</b> は、動画の音を、そのまま音声ファイルにします。MPC など、音楽の道具に入れるときは、こちらがおすすめです。<b>MP3</b> は、サイズが小さく、スマホで聞くときに向いています。</p>
+  <p>動画を、どこにも送りません。この端末の中だけで処理します。</p>
+  <p>読み込めない動画もあります(端末が対応していない形式や、とても大きなファイルなど)。その場合は、動画の音を、再生しながら録音する方法に切り替えます。この方法は、動画の長さと同じ時間がかかります。</p>
+  <p>音の大きさや、サンプルレートは、44.1kHz に変わります。音楽の道具で、よく使われる設定です。</p>
+  <p>自分で楽しむ範囲で使ってください。動画や音楽の著作権に、気をつけてください。</p>
+ </details>
+</main>
+<script>
+(function(){
+ var $=function(i){return document.getElementById(i)};
+ var SR=44100, buf=null, name='audio', urls=[], MAXSEC=0, previewing=null, blobUrls=[];
+ function say(id,t,k){var e=$(id);e.textContent=t;e.className='msg'+(k?' '+k:'')}
+ function tfmt(s){s=Math.max(0,s);var m=Math.floor(s/60);return m+':'+(s-m*60).toFixed(1).padStart(4,'0')}
+ function pos(el){return Number(el.value)/1000*buf.duration}
+ function range(){var a=pos($('s')),b=pos($('e'));return a<=b?[a,b]:[b,a]}
+ function paintSel(){
+  var r=range(),d=buf.duration;
+  $('sVal').textContent=tfmt(pos($('s')));$('eVal').textContent=tfmt(pos($('e')));
+  $('selL').style.width=(r[0]/d*100)+'%';$('selR').style.width=((d-r[1])/d*100)+'%';
+ }
+ function wave(){
+  var c=$('wave'),g=c.getContext('2d'),W=c.width,H=c.height,L=buf.getChannelData(0),R=buf.numberOfChannels>1?buf.getChannelData(1):L,step=Math.max(1,Math.floor(L.length/W));
+  g.clearRect(0,0,W,H);g.fillStyle='#34d399';
+  for(var x=0;x<W;x++){var mx=0,i0=x*step,i1=Math.min(L.length,i0+step);
+   for(var i=i0;i<i1;i+=Math.max(1,step>>5)){var v=Math.max(Math.abs(L[i]),Math.abs(R[i]));if(v>mx)mx=v}
+   var h=Math.max(2,mx*H*0.9);g.fillRect(x,(H-h)/2,1,h)}
+ }
+
+ // 読み込み: まず、ブラウザの音声デコーダーで。だめなら、再生しながら録音する
+ async function decode(f){
+  var ab=await f.arrayBuffer(),ctx=new (window.OfflineAudioContext||window.webkitOfflineAudioContext)(2,1,SR);
+  return await new Promise(function(ok,ng){var p=ctx.decodeAudioData(ab,ok,ng);if(p&&p.catch)p.catch(ng)});
+ }
+ function record(f){
+  return new Promise(function(ok,ng){
+   var v=document.createElement('video'),u=URL.createObjectURL(f);v.src=u;v.playsInline=true;v.muted=false;v.preload='auto';
+   v.onerror=function(){ng(new Error('play'))};
+   v.onloadedmetadata=function(){
+    var AC=window.AudioContext||window.webkitAudioContext,ac=new AC({sampleRate:SR}),srcN;
+    try{srcN=ac.createMediaElementSource(v)}catch(e){return ng(e)}
+    var dest=ac.createMediaStreamDestination(),chunks=[];srcN.connect(dest);
+    var mr;try{mr=new MediaRecorder(dest.stream)}catch(e){return ng(e)}
+    mr.ondataavailable=function(e){if(e.data.size)chunks.push(e.data)};
+    mr.onstop=function(){ac.close();URL.revokeObjectURL(u);new Blob(chunks).arrayBuffer().then(function(ab){
+     new (window.OfflineAudioContext||window.webkitOfflineAudioContext)(2,1,SR).decodeAudioData(ab,ok,ng)})};
+    v.onended=function(){mr.stop()};
+    v.ontimeupdate=function(){var d=v.duration||1;$('lfill').style.width=(v.currentTime/d*100)+'%';say('loadmsg','再生しながら録音しています… '+tfmt(v.currentTime)+' / '+tfmt(d))};
+    $('lbar').hidden=false;ac.resume().then(function(){mr.start();return v.play()}).catch(ng);
+   };
+  });
+ }
+ async function load(f){
+  buf=null;$('opts').hidden=true;$('resbox').hidden=true;$('lbar').hidden=true;
+  say('loadmsg','読み込んでいます…');name=f.name.replace(/\.[^.]+$/,'');
+  try{buf=await decode(f)}catch(e){
+   try{say('loadmsg','この形式は直接読めないため、再生しながら録音します(動画の長さと同じ時間がかかります)…');buf=await record(f)}
+   catch(e2){say('loadmsg','この動画の音は、読み込めませんでした。mp4 や mov で試してください。','bad');return}
+  }
+  $('lbar').hidden=true;
+  if(!buf||buf.length<10){say('loadmsg','音が見つかりませんでした。音のない動画かもしれません。','bad');buf=null;return}
+  say('loadmsg',f.name+'(音の長さ '+tfmt(buf.duration)+')','ok');
+  $('s').value=0;$('e').value=1000;wave();paintSel();$('opts').hidden=false;
+ }
+
+ // 取り出す範囲の音を作る
+ function make(){
+  var r=range(),a=Math.floor(r[0]*SR),b=Math.min(buf.length,Math.floor(r[1]*SR)),n=b-a;
+  if(n<SR/20)throw new Error('範囲が短すぎます');
+  var mono=$('mono').checked,L=buf.getChannelData(0).slice(a,b),R=buf.numberOfChannels>1?buf.getChannelData(1).slice(a,b):L.slice();
+  if(mono){for(var i=0;i<n;i++){L[i]=(L[i]+R[i])/2}R=L}
+  if($('norm').checked){var pk=0;for(i=0;i<n;i++){var x=Math.abs(L[i]),y=Math.abs(R[i]);if(x>pk)pk=x;if(y>pk)pk=y}if(pk>1e-4){var g=0.95/pk;for(i=0;i<n;i++){L[i]*=g;if(R!==L)R[i]*=g}}}
+  if($('fade').checked){var fl=Math.min(Math.floor(0.3*SR),n>>1);for(i=0;i<fl;i++){var w=i/fl;L[i]*=w;L[n-1-i]*=w;if(R!==L){R[i]*=w;R[n-1-i]*=w}}}
+  return {L:L,R:R,n:n,mono:mono};
+ }
+ function i16(x){x=x>1?1:x<-1?-1:x;return x<0?x*32768:x*32767}
+ function wavBlob(d){
+  var ch=d.mono?1:2,len=d.n*ch*2,h=new ArrayBuffer(44),v=new DataView(h),ws=function(o,s){for(var i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+  ws(0,'RIFF');v.setUint32(4,36+len,true);ws(8,'WAVEfmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,ch,true);v.setUint32(24,SR,true);v.setUint32(28,SR*ch*2,true);v.setUint16(32,ch*2,true);v.setUint16(34,16,true);ws(36,'data');v.setUint32(40,len,true);
+  var parts=[h],CH=SR*10;
+  for(var s=0;s<d.n;s+=CH){var m=Math.min(CH,d.n-s),p=new Int16Array(m*ch);
+   for(var i=0;i<m;i++){if(ch===1)p[i]=i16(d.L[s+i]);else{p[i*2]=i16(d.L[s+i]);p[i*2+1]=i16(d.R[s+i])}}
+   parts.push(p)}
+  return new Blob(parts,{type:'audio/wav'});
+ }
+ var lameP=null;
+ function loadLame(){
+  if(window.lamejs)return Promise.resolve();
+  return lameP||(lameP=new Promise(function(ok,ng){var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js';s.onload=ok;s.onerror=function(){lameP=null;ng(new Error('mp3'))};document.head.appendChild(s)}));
+ }
+ async function mp3Blob(d,kbps){
+  await loadLame();
+  var ch=d.mono?1:2,enc=new lamejs.Mp3Encoder(ch,SR,kbps),out=[],B=1152*20;
+  for(var s=0;s<d.n;s+=B){var m=Math.min(B,d.n-s),l=new Int16Array(m),r=ch===2?new Int16Array(m):null;
+   for(var i=0;i<m;i++){l[i]=i16(d.L[s+i]);if(r)r[i]=i16(d.R[s+i])}
+   var o=ch===2?enc.encodeBuffer(l,r):enc.encodeBuffer(l);if(o.length)out.push(new Uint8Array(o));
+   $('pfill').style.width=(s/d.n*100)+'%';if((s/B)%10===0)await new Promise(function(r){setTimeout(r,0)})}
+  var e=enc.flush();if(e.length)out.push(new Uint8Array(e));
+  return new Blob(out,{type:'audio/mpeg'});
+ }
+ function sz(n){return n>=1048576?(n/1048576).toFixed(1)+' MB':Math.round(n/1024)+' KB'}
+
+ $('fmt').onchange=function(){$('brRow').hidden=$('fmt').value!=='mp3'};
+ ['s','e'].forEach(function(i){$(i).addEventListener('input',function(){if(buf)paintSel()})});
+ $('go').onclick=async function(){
+  if(!buf)return;$('go').disabled=true;say('msg','作っています…');$('pbar').hidden=false;$('pfill').style.width='0';$('resbox').hidden=true;
+  try{
+   var d=make(),fmt=$('fmt').value,blob=fmt==='mp3'?await mp3Blob(d,+$('br').value):wavBlob(d);
+   blobUrls.forEach(URL.revokeObjectURL);blobUrls=[];var u=URL.createObjectURL(blob);blobUrls.push(u);
+   $('res').src=u;$('dl').href=u;$('dl').download=name+(fmt==='mp3'?'.mp3':'.wav');
+   $('info').textContent=name+(fmt==='mp3'?'.mp3':'.wav')+' ・ '+tfmt(d.n/SR)+' ・ '+sz(blob.size)+(d.mono?' ・ モノラル':' ・ ステレオ');
+   $('resbox').hidden=false;say('msg','できました。聞いて、確かめてください。','ok');
+  }catch(e){say('msg',e.message==='mp3'?'MP3 の部品を読み込めませんでした。WAV にするか、通信を確かめてください。':'作れませんでした: '+e.message,'bad')}
+  $('pbar').hidden=true;$('go').disabled=false;
+ };
+ var pv=null;
+ $('prev').onclick=function(){
+  if(!buf)return;
+  if(pv){pv.stop();pv=null;$('prev').textContent='聞いてみる';return}
+  var r=range(),ctx=new (window.AudioContext||window.webkitAudioContext)(),s=ctx.createBufferSource();s.buffer=buf;s.connect(ctx.destination);
+  s.start(0,r[0],Math.min(r[1]-r[0],30)); // 長いときは、30秒まで
+  pv={stop:function(){try{s.stop()}catch(e){}ctx.close()}};$('prev').textContent='止める';
+  s.onended=function(){if(pv){ctx.close();pv=null;$('prev').textContent='聞いてみる'}};
+ };
+ $('pick').onclick=function(){$('file').click()};
+ $('file').onchange=function(e){var f=e.target.files[0];e.target.value='';if(f)load(f)};
+ var dr=$('drop');
+ ['dragenter','dragover'].forEach(function(n){dr.addEventListener(n,function(e){e.preventDefault();dr.classList.add('over')})});
+ ['dragleave','drop'].forEach(function(n){dr.addEventListener(n,function(e){e.preventDefault();dr.classList.remove('over')})});
+ dr.addEventListener('drop',function(e){var f=e.dataTransfer&&e.dataTransfer.files[0];if(f)load(f)});
+ window.__va={load:load,get buf(){return buf}};
+})();
+</script>
+</body>
+</html>

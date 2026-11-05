@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AIで分ける">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="../../icons/stem-ai.svg">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>AIで楽器ごとに分ける</title>
+<script src="coi-serviceworker.js"></script>
+<style>
+:root{--bg:#0b1020;--card:rgba(255,255,255,.06);--fg:#f1f4ff;--mut:#9aa5c4;--line:rgba(255,255,255,.12);--ac:#a78bfa;--ac2:#ec4899;--bad:#ff8a80;--ok:#6ee7b7}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg)}
+body{color:var(--fg);font:16px/1.6 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+ padding:max(20px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(48px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:radial-gradient(60vmax 60vmax at 0% 0%,rgba(124,92,255,.3),transparent 60%),radial-gradient(50vmax 50vmax at 100% 100%,rgba(236,72,153,.2),transparent 60%)}
+main{max-width:680px;margin:0 auto;display:grid;gap:14px}
+header{display:flex;gap:12px;align-items:center}
+header img{width:52px;height:52px;border-radius:13px}
+h1{margin:0;font-size:22px;line-height:1.2}
+.back{font-size:13px;color:var(--mut);text-decoration:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+h2{margin:0 0 12px;font-size:14px;color:var(--fg);letter-spacing:.04em;display:flex;align-items:center;gap:10px}
+h2 .n{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--ac),var(--ac2));font-size:13px;color:#fff;flex:none}
+.hero{margin:0;color:var(--mut);font-size:14px}
+.chks label{--c:#a78bfa}
+.chks label i{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}
+.chks label:has(input:checked){border-color:var(--c);background:color-mix(in srgb,var(--c) 16%,transparent)}
+.chks label:has(input:focus-visible){outline:3px solid #fff}
+.stem{--c:#a78bfa;border:1px solid var(--line);border-left:5px solid var(--c);border-radius:14px;padding:12px 14px;margin-bottom:10px;background:rgba(255,255,255,.04)}
+.stem:first-of-type{border-top:1px solid var(--line)}
+.barx{display:flex;justify-content:space-between;font-size:13px;color:var(--mut);margin-top:6px}
+.done{border-color:rgba(110,231,183,.5)}
+.zip{margin-bottom:12px}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:22px 12px;text-align:center;display:grid;gap:8px;justify-items:center}
+.drop.over{border-color:var(--ac)}
+button,a.btn{font:inherit;font-weight:700;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.08);color:var(--fg);padding:8px 14px;min-height:44px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}
+button.pri{background:linear-gradient(135deg,var(--ac),var(--ac2));border:0;color:#fff;min-height:48px;padding:10px 20px}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,a.btn:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.chks{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chks label{display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:12px;font-size:14px;cursor:pointer}
+.chks input,.one input{width:20px;height:20px;accent-color:var(--ac);flex:none}
+.fmtrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}label.f{display:grid;gap:4px;font-size:13px;color:var(--mut)}select{font:inherit;font-size:15px;color:var(--fg);background:#161c33;border:1px solid var(--line);border-radius:10px;padding:10px;min-height:44px}
+.one{display:flex;gap:10px;align-items:center;margin-top:12px;font-size:14px}
+.bar{height:10px;border-radius:5px;background:rgba(255,255,255,.1);overflow:hidden;margin:10px 0 4px}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--ac),var(--ac2));transition:width .3s}
+.msg{margin:6px 0 0;font-size:14px;color:var(--mut)}.msg.bad{color:var(--bad)}.msg.ok{color:var(--ok)}
+.stem{display:grid;gap:6px}
+.stem .h{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.stem b{font-size:16px}.stem small{color:var(--mut);display:block;font-weight:400;font-size:12px}
+audio{width:100%}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+details{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
+summary{cursor:pointer;font-weight:700}
+details p,details li{font-size:14px;color:var(--mut);margin:.5em 0}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+ <header><img src="../../icons/stem-ai.svg" alt="" width="52" height="52"><div><a class="back" href="../">← 音楽ツール</a><h1>AIで楽器ごとに分ける</h1><p class="hero">曲から、歌声・ギター・ドラムなどを取り出します。曲は、端末の外に出ません。</p></div></header>
+
+ <section class="card">
+  <h2><span class="n">1</span>曲を選ぶ</h2>
+  <div class="drop" id="drop">
+   <button type="button" class="pri" id="pick">曲のファイルを選ぶ</button>
+   <span class="msg" style="margin:0">WAV・mp3・m4a など。ここにドラッグしても入れられます。</span>
+   <input id="file" type="file" accept="audio/*,.wav,.mp3,.m4a,.aif,.aiff,.flac,.ogg" hidden>
+  </div>
+  <p class="msg" id="loadmsg" role="status"></p>
+ </section>
+
+ <section class="card" id="opts" hidden>
+  <h2><span class="n">2</span>作るものを選ぶ</h2>
+  <div class="chks" id="chks">
+   <label style="--c:#f472b6"><input type="checkbox" value="vocals" checked><i></i>ボーカル</label>
+   <label style="--c:#a78bfa"><input type="checkbox" value="no_vocals" checked><i></i>声なし(カラオケ)</label>
+   <label style="--c:#fbbf24"><input type="checkbox" value="guitar" checked><i></i>ギター</label>
+   <label style="--c:#fb923c"><input type="checkbox" value="no_guitar" checked><i></i>ギターなし</label>
+   <label style="--c:#60a5fa"><input type="checkbox" value="drums"><i></i>ドラム</label>
+   <label style="--c:#34d399"><input type="checkbox" value="bass"><i></i>ベース</label>
+   <label style="--c:#2dd4bf"><input type="checkbox" value="no_bass"><i></i>ベースなし</label>
+   <label style="--c:#22d3ee"><input type="checkbox" value="piano"><i></i>ピアノ</label>
+   <label style="--c:#94a3b8"><input type="checkbox" value="other"><i></i>その他</label>
+  </div>
+  <div class="fmtrow"><label class="f">保存の形式<select id="fmt"><option value="wav">WAV(音質そのまま・大きい)</option><option value="mp3">MP3(小さい)</option></select></label>
+   <label class="f" id="brRow" hidden>MP3 の音質<select id="br"><option value="128">128 kbps(ふつう)</option><option value="192" selected>192 kbps(きれい)</option><option value="320">320 kbps(最高)</option></select></label></div>
+  <label class="one"><input type="checkbox" id="mono">モノラルにする(サイズが半分になります)</label>
+  <label class="one"><input type="checkbox" id="trial">曲の中ほどの30秒だけ、ためす(速い)</label>
+  <p class="msg" id="est"></p>
+  <div class="row"><button type="button" class="pri" id="go">3. 分ける</button><button type="button" id="stop" hidden>やめる</button></div>
+  <div class="bar" id="barwrap" hidden><i id="fill"></i></div>
+  <div class="barx" id="barx" hidden><span id="pct">0%</span><span id="eta"></span></div>
+  <p class="msg" id="msg" role="status"></p>
+ </section>
+
+ <section class="card" id="resCard" hidden>
+  <h2><span class="n">✓</span>できたもの</h2>
+  <div id="res"></div>
+ </section>
+
+ <details>
+  <summary>使い方と、注意すること</summary>
+  <ol>
+   <li>曲のファイルを選びます。</li>
+   <li>作りたいものに、チェックを入れます。選ぶ数が少ないほど、メモリを使いません。</li>
+   <li>まず「曲の中ほどの30秒だけ、ためす」で、仕上がりを確かめるのがおすすめです。</li>
+   <li>「分ける」を押して、待ちます。<b>待っているあいだは、このページを開いたままにしてください。</b>iPhone では、別のアプリを開いたり、画面を消したりすると、止まります(処理中は、画面が消えないようにしています)。パソコンでは、別のアプリを使っていても、続きます。できたら、聞いて、「WAV で保存」を押します。MPC に入れて加工するなら WAV、スマホで聞いたり人に送ったりするなら MP3 がおすすめです(MP3 は、WAV の4〜10分の1の大きさです)。</li>
+  </ol>
+  <p><b>はじめて使うとき</b>は、AI のモデル(約130MB)をダウンロードします。2回目からは、この端末に残っているので、すぐ始まります。</p>
+  <p><b>時間</b>は、端末によって大きく違います。パソコンなら、曲の長さの数倍かかることがあります。スマホは、もっと遅く、メモリが足りなくて止まることもあります。長い曲は、パソコンでやってください。</p>
+  <p><b>しくみ</b>: Meta の公開 AI「Demucs」を、ブラウザの中で動かしています(ONNX 形式の変換モデルは <a href="https://huggingface.co/StemSplitio/htdemucs-6s-onnx" style="color:inherit">StemSplitio</a> 版、MIT ライセンス)。曲は、どこにも送られません。</p>
+  <p>仕上がりは、曲によって違います。声に伴奏が少し混ざったり、ギターに他の音が混ざったりすることがあります。完全ではありません。</p>
+  <p>自分で楽しむ範囲で使ってください。曲の著作権に、気をつけてください。</p>
+ </details>
+</main>
+<script type="module">
+import * as ort from "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.wasm.min.mjs";
+const $=(i)=>document.getElementById(i);
+const MODEL_URL="https://huggingface.co/StemSplitio/htdemucs-6s-onnx/resolve/main/htdemucs_6s_fp16weights.onnx";
+const MODEL_BYTES=136428532, CACHE="stem-ai-v1";
+const SR=44100, N=343980, OV=Math.floor(N/4), STRIDE=N-OV, SRC=["drums","bass","other","vocals","guitar","piano"];
+const DEF={ // 出力 -> 6つの音への係数
+ vocals:[0,0,0,1,0,0], no_vocals:[1,1,1,0,1,1], guitar:[0,0,0,0,1,0], no_guitar:[1,1,1,1,0,1],
+ no_bass:[1,0,1,1,1,1], drums:[1,0,0,0,0,0], bass:[0,1,0,0,0,0], piano:[0,0,0,0,0,1], other:[0,0,1,0,0,0]};
+const LABEL={vocals:["ボーカル","歌声だけ"],no_vocals:["声なし(カラオケ)","声だけを抜いた、演奏"],guitar:["ギター","ギターだけ"],no_guitar:["ギターなし","ギターだけを抜いた、演奏"],drums:["ドラム","ドラムだけ"],bass:["ベース","ベースだけ"],no_bass:["ベースなし","ベースだけを抜いた、演奏"],piano:["ピアノ","ピアノだけ"],other:["その他","上のどれでもない音(シンセ、コーラスなど)"]};
+const COL={"vocals": "#f472b6", "no_vocals": "#a78bfa", "guitar": "#fbbf24", "no_guitar": "#fb923c", "drums": "#60a5fa", "bass": "#34d399", "no_bass": "#2dd4bf", "piano": "#22d3ee", "other": "#94a3b8"};
+const ORDER=["vocals","no_vocals","guitar","no_guitar","drums","bass","no_bass","piano","other"];
+let song=null, session=null, stopFlag=false, urls=[];
+
+const yieldNow=()=>new Promise(r=>{const c=new MessageChannel();c.port1.onmessage=()=>{c.port1.close();r()};c.port2.postMessage(0)});
+let wake=null;
+const keepAwake=async()=>{try{if(navigator.wakeLock)wake=await navigator.wakeLock.request("screen")}catch(e){wake=null}};
+const letSleep=()=>{try{if(wake)wake.release()}catch(e){}wake=null};
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&$("go").disabled)keepAwake()});
+const say=(id,t,k)=>{const e=$(id);e.textContent=t;e.className="msg"+(k?" "+k:"")};
+const mmss=(s)=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+"分"+String(s%60).padStart(2,"0")+"秒"};
+const pickedNames=()=>[...document.querySelectorAll("#chks input:checked")].map(i=>i.value);
+
+let busy=false;
+async function load(f){
+ if(busy){say("loadmsg","分けている途中です。終わってから、選び直してください。","bad");return}
+ say("loadmsg","読み込んでいます…");$("opts").hidden=true;$("resCard").hidden=true;
+ try{
+  const ab=await f.arrayBuffer(), ctx=new (window.OfflineAudioContext||window.webkitOfflineAudioContext)(2,1,SR);
+  const buf=await new Promise((ok,ng)=>{const p=ctx.decodeAudioData(ab,ok,ng);if(p&&p.catch)p.catch(ng)});
+  const L=buf.getChannelData(0), R=buf.numberOfChannels>1?buf.getChannelData(1):L;
+  song={L,R,len:L.length,name:f.name.replace(/\.[^.]+$/,"")};
+  say("loadmsg",f.name+"(長さ "+mmss(L.length/SR)+")","ok");$("opts").hidden=false;estimate();
+ }catch(e){say("loadmsg","この形式は、読み込めませんでした。WAV か mp3 を試してください。","bad")}
+}
+function estimate(){
+ if(!song)return;const sec=$("trial").checked?Math.min(30,song.len/SR):song.len/SR;
+ const th=crossOriginIsolated?Math.min(navigator.hardwareConcurrency||2,4):1;
+ say("est","分ける長さ: "+mmss(sec)+(crossOriginIsolated?"":"  ※この環境では、高速化の機能が使えないので、とても遅くなります。"));
+ const mb=Math.round(sec*176400*Math.max(1,pickedNames().length)/1048576);
+ if(!$("trial").checked&&(sec>360||mb>500))say("est","長い曲か、作るものが多いです(メモリを約"+mb+"MB使います)。止まることがあるので、まず「ためす」か、作るものを減らしてください。","bad");
+ else if(/iPhone|iPad/.test(navigator.userAgent)&&!$("trial").checked)say("est","分ける長さ: "+mmss(sec)+"。iPhone は、メモリが少なく、止まることがあります。まず「ためす」をおすすめします。");
+}
+$("trial").onchange=estimate;$("chks").addEventListener("change",estimate);
+
+async function getModel(){
+ if(session)return session;
+ const cache=await caches.open(CACHE).catch(()=>null);
+ let buf=null,hit=cache&&await cache.match(MODEL_URL);
+ if(hit){say("msg","保存してあるモデルを読み込んでいます…");buf=new Uint8Array(await hit.arrayBuffer());if(Math.abs(buf.length-MODEL_BYTES)>1024){buf=null;try{await cache.delete(MODEL_URL)}catch(e){}hit=null}}
+ if(!hit){
+  const r=await fetch(MODEL_URL);if(!r.ok)throw new Error("モデルをダウンロードできませんでした。通信を確かめてください");
+  const total=Number(r.headers.get("content-length"))||MODEL_BYTES,rd=r.body.getReader(),parts=[];let got=0;
+  for(;;){if(stopFlag){rd.cancel();throw new Error("stop")}const {done,value}=await rd.read();if(done)break;parts.push(value);got+=value.length;
+   $("fill").style.width=(got/total*100)+"%";say("msg","AIのモデルをダウンロードしています… "+Math.round(got/1048576)+" / "+Math.round(total/1048576)+" MB(初回だけ)")}
+  const all=new Uint8Array(got);let o=0;for(const p of parts){all.set(p,o);o+=p.length}buf=all;
+  if(cache)try{await cache.put(MODEL_URL,new Response(new Blob([all],{type:"application/octet-stream"})))}catch(e){}
+ }
+ say("msg","モデルを準備しています…");
+ ort.env.wasm.numThreads=crossOriginIsolated?Math.min(navigator.hardwareConcurrency||2,4):1;
+ ort.env.wasm.simd=true;
+ try{session=await ort.InferenceSession.create(buf,{executionProviders:["wasm"],graphOptimizationLevel:"disabled",enableCpuMemArena:false,enableMemPattern:false})}catch(e){try{if(cache)await cache.delete(MODEL_URL)}catch(_){}throw new Error("モデルを動かせませんでした(メモリ不足かもしれません)")}
+ return session;
+}
+
+let lameP=null;
+const loadLame=()=>window.lamejs?Promise.resolve():(lameP||(lameP=new Promise((ok,ng)=>{const e=document.createElement("script");e.src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js";e.crossOrigin="anonymous";e.onload=ok;e.onerror=()=>{lameP=null;ng(new Error("mp3"))};document.head.appendChild(e)})));
+async function mp3Blob(parts,mono,kbps){ // parts: 左右が交互に並んだ Int16Array
+ await loadLame();
+ const enc=new lamejs.Mp3Encoder(mono?1:2,SR,kbps),out=[];
+ for(let q=0;q<parts.length;q++){const p=parts[q],m=p.length>>1,l=new Int16Array(m),r=mono?null:new Int16Array(m);
+  for(let i=0;i<m;i++){if(mono)l[i]=(p[2*i]+p[2*i+1])>>1;else{l[i]=p[2*i];r[i]=p[2*i+1]}}
+  for(let o=0;o<m;o+=1152*50){const b=enc.encodeBuffer(l.subarray(o,o+1152*50),r?r.subarray(o,o+1152*50):undefined);if(b.length)out.push(new Uint8Array(b))}
+  if(q%4===3)await yieldNow()}
+ const f=enc.flush();if(f.length)out.push(new Uint8Array(f));
+ return new Blob(out,{type:"audio/mpeg"});
+}
+function wavBlob(parts,n,mono){
+ if(mono)parts=parts.map(p=>{const m=p.length>>1,o=new Int16Array(m);for(let i=0;i<m;i++)o[i]=(p[2*i]+p[2*i+1])>>1;return o});
+ const ch=mono?1:2,h=new ArrayBuffer(44),v=new DataView(h),ws=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+ ws(0,"RIFF");v.setUint32(4,36+n*2*ch,true);ws(8,"WAVEfmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,ch,true);
+ v.setUint32(24,SR,true);v.setUint32(28,SR*2*ch,true);v.setUint16(32,2*ch,true);v.setUint16(34,16,true);ws(36,"data");v.setUint32(40,n*2*ch,true);
+ return new Blob([h,...parts],{type:"audio/wav"});
+}
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+const crc32=(u)=>{let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=CRC[(c^u[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0};
+async function zipBlob(files){ // 圧縮なしの ZIP(WAV も MP3 も、もう小さいので)
+ const enc=new TextEncoder(),parts=[],cen=[];let off=0;
+ for(const f of files){const data=new Uint8Array(await f.blob.arrayBuffer()),crc=crc32(data),nm=enc.encode(f.name),sz=data.length;
+  const lh=new DataView(new ArrayBuffer(30));lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(6,0x0800,true);lh.setUint16(8,0,true);lh.setUint16(10,0,true);lh.setUint16(12,0x21,true);lh.setUint32(14,crc,true);lh.setUint32(18,sz,true);lh.setUint32(22,sz,true);lh.setUint16(26,nm.length,true);lh.setUint16(28,0,true);
+  parts.push(lh.buffer,nm,f.blob);
+  const ch=new DataView(new ArrayBuffer(46));ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(8,0x0800,true);ch.setUint16(14,0x21,true);ch.setUint32(16,crc,true);ch.setUint32(20,sz,true);ch.setUint32(24,sz,true);ch.setUint16(28,nm.length,true);ch.setUint32(42,off,true);
+  cen.push(ch.buffer,nm);off+=30+nm.length+sz}
+ const cs=cen.reduce((a,b)=>a+(b.byteLength||b.length),0),e=new DataView(new ArrayBuffer(22));e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cs,true);e.setUint32(16,off,true);
+ return new Blob([...parts,...cen,e.buffer],{type:"application/zip"});
+}
+const sz=(n)=>n>=1048576?(n/1048576).toFixed(1)+" MB":Math.round(n/1024)+" KB";
+
+async function run(){
+ const names=pickedNames();if(!names.length){say("msg","作るものを、1つ以上選んでください。","bad");return}
+ busy=true;stopFlag=false;keepAwake();$("go").disabled=true;$("stop").hidden=false;$("resCard").hidden=true;$("resCard").classList.remove("done");$("barx").hidden=true;$("barwrap").hidden=false;$("fill").style.width="0";
+ urls.forEach(URL.revokeObjectURL);urls=[];
+ try{
+  const sess=await getModel();
+  const trial=$("trial").checked,off=trial?Math.max(0,Math.min(song.len-30*SR,Math.floor(song.len*0.35))):0,total=trial?Math.min(song.len-off,30*SR):song.len, nCh=total<=N?1:Math.ceil((total-N)/STRIDE)+1;
+  const acc=names.map(()=>[new Float32Array(N),new Float32Array(N)]), wacc=new Float32Array(N), outParts=names.map(()=>[]);
+  const chunk=new Float32Array(2*N); let wrote=0, t0=performance.now();
+  const emit=(from,len)=>{ // [from, from+len) は、もう変わらない。16bit にして保存する
+   for(let k=0;k<names.length;k++){const p=new Int16Array(len*2);
+    for(let s=0;s<len;s++){const w=Math.max(wacc[s],1e-8);
+     for(let c=0;c<2;c++){let x=acc[k][c][s]/w;x=x>1?1:x<-1?-1:x;p[s*2+c]=x<0?x*32768:x*32767}}
+    outParts[k].push(p)}
+   wrote+=len;
+  };
+  for(let i=0;i<nCh;i++){
+   if(stopFlag)throw new Error("stop");
+   const start=i*STRIDE,end=Math.min(start+N,total),clen=end-start;
+   chunk.fill(0);chunk.set(song.L.subarray(off+start,off+end),0);chunk.set(song.R.subarray(off+start,off+end),N);
+   const res=await sess.run({mix:new ort.Tensor("float32",chunk,[1,2,N])});
+   const st=res.stems.data; // [1,6,2,N]
+   for(let s=0;s<clen;s++){ // 繋ぎ目は、なだらかに混ぜる(最初と最後は、そのまま)
+    let w=1;if(i>0&&s<OV)w=s/OV;if(i<nCh-1&&s>=N-OV)w=(N-1-s)/OV;
+    wacc[s]+=w;
+    for(let k=0;k<names.length;k++){const co=DEF[names[k]];
+     for(let c=0;c<2;c++){let x=0;for(let q=0;q<6;q++)if(co[q])x+=st[(q*2+c)*N+s];acc[k][c][s]+=x*w}}
+   }
+   const last=i===nCh-1,fin=last?clen:Math.min(STRIDE,clen);
+   emit(start,fin);
+   if(!last){ // 次の区間へ、ずらす
+    for(let k=0;k<names.length;k++)for(let c=0;c<2;c++){const a=acc[k][c];a.copyWithin(0,STRIDE,N);a.fill(0,OV,N)}
+    wacc.copyWithin(0,STRIDE,N);wacc.fill(0,OV,N);
+   }
+   const el=(performance.now()-t0)/1000,p=(i+1)/nCh;
+   $("fill").style.width=(p*100)+"%";$("barx").hidden=false;$("pct").textContent=Math.round(p*100)+"%";$("eta").textContent=i>0||nCh===1?"残り約 "+mmss(el/p-el):"はじめは、準備で時間がかかります";
+   say("msg","分けています… "+(i+1)+" / "+nCh+" 区切り");
+   await yieldNow();
+  }
+  const html=[],zipFiles=[],fmt=$("fmt").value,mono=$("mono").checked,ext=fmt==="mp3"?".mp3":".wav";
+  const todo=ORDER.filter(n=>names.includes(n));
+  for(let ti=0;ti<todo.length;ti++){const n=todo[ti];
+   const k=names.indexOf(n);
+   if(fmt==="mp3")say("msg","MP3 に変換しています… "+(ti+1)+" / "+todo.length);
+   const blob=fmt==="mp3"?await mp3Blob(outParts[k],mono,+$("br").value):wavBlob(outParts[k],wrote,mono),u=URL.createObjectURL(blob);urls.push(u);outParts[k]=null;
+   const fn=song.name+"_"+LABEL[n][0].replace(/[()（）]/g,"_")+ext;zipFiles.push({name:fn,blob});
+   html.push(`<div class="stem" style="--c:${COL[n]}"><div class="h"><b>${LABEL[n][0]}<small>${LABEL[n][1]} ・ ${sz(blob.size)}</small></b><a class="btn" href="${u}" download="${fn}">${fmt==="mp3"?"MP3":"WAV"} で保存</a></div><audio controls preload="metadata" src="${u}"></audio></div>`);
+  }
+  $("res").innerHTML=(zipFiles.length>1?'<div class="zip"><button type="button" class="pri" id="zipbtn">全部まとめて保存(ZIP)</button><p class="msg" id="zipmsg"></p></div>':"")+html.join("");$("resCard").hidden=false;$("resCard").classList.add("done");
+  if($("zipbtn"))$("zipbtn").onclick=async()=>{$("zipbtn").disabled=true;say("zipmsg","まとめています…");try{const zb=await zipBlob(zipFiles),zu=URL.createObjectURL(zb);urls.push(zu);const a=document.createElement("a");a.href=zu;a.download=song.name+"_分けたもの.zip";document.body.appendChild(a);a.click();a.remove();say("zipmsg","ZIP を保存しました("+sz(zb.size)+")","ok")}catch(e){say("zipmsg","まとめられませんでした。1つずつ保存してください。","bad")}$("zipbtn").disabled=false};$("fill").style.width="100%";
+  say("msg","できました("+mmss((performance.now()-t0)/1000)+")。聞いて、確かめてください。","ok");
+ }catch(e){
+  if(e.message==="stop")say("msg","やめました。");
+  else{console.error(e);say("msg","うまくいきませんでした: "+(typeof e==="object"&&e&&e.message?e.message:"内部のエラー")+"。曲が長すぎるか、メモリが足りないかもしれません。「ためす」か、作るものを減らして、試してください。","bad")}
+ }
+ busy=false;letSleep();$("go").disabled=false;$("stop").hidden=true;
+}
+const PK="stem-ai:prefs";
+const savePrefs=()=>{try{localStorage.setItem(PK,JSON.stringify({n:pickedNames(),f:$("fmt").value,b:$("br").value,m:$("mono").checked}))}catch(e){}};
+try{const pr=JSON.parse(localStorage.getItem(PK)||"null");if(pr){document.querySelectorAll("#chks input").forEach(i=>{i.checked=pr.n.includes(i.value)});$("fmt").value=pr.f;$("br").value=pr.b;$("mono").checked=!!pr.m}}catch(e){}
+$("fmt").onchange=()=>{$("brRow").hidden=$("fmt").value!=="mp3";savePrefs()};$("brRow").hidden=$("fmt").value!=="mp3";
+["chks","br","mono"].forEach(i=>$(i).addEventListener("change",savePrefs));
+$("go").onclick=run;$("stop").onclick=()=>{stopFlag=true};
+$("pick").onclick=()=>$("file").click();
+$("file").onchange=(e)=>{const f=e.target.files[0];e.target.value="";if(f)load(f)};
+const d=$("drop");
+["dragenter","dragover"].forEach(n=>d.addEventListener(n,e=>{e.preventDefault();d.classList.add("over")}));
+["dragleave","drop"].forEach(n=>d.addEventListener(n,e=>{e.preventDefault();d.classList.remove("over")}));
+d.addEventListener("drop",e=>{const f=e.dataTransfer&&e.dataTransfer.files[0];if(f)load(f)});
+window.__stem={load,run,names:pickedNames}; // 動作確認用
+</script>
+</body>
+</html>
