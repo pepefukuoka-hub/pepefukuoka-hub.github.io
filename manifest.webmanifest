@@ -1,6 +1,6 @@
 {
-  "name": "PEPE LAB",
-  "short_name": "PEPE LAB",
+  "name": "作品集",
+  "short_name": "作品集",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
