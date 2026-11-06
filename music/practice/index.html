@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="練習プレーヤー">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="../../icons/practice.svg">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>練習プレーヤー</title>
+<style>
+:root{--bg:#0b1020;--card:rgba(255,255,255,.06);--fg:#f1f4ff;--mut:#9aa5c4;--line:rgba(255,255,255,.12);--ac:#a78bfa;--ac2:#818cf8;--bad:#ff8a80;--ok:#6ee7b7;--ab:#fbbf24}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg)}
+body{color:var(--fg);font:16px/1.6 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+ padding:calc(env(safe-area-inset-top, 0px) + 36px) max(16px,env(safe-area-inset-right)) max(48px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:radial-gradient(60vmax 60vmax at 0% 0%,rgba(129,140,248,.28),transparent 60%),radial-gradient(50vmax 50vmax at 100% 100%,rgba(192,132,252,.2),transparent 60%)}
+main{max-width:680px;margin:0 auto;display:grid;gap:14px}
+header{display:flex;gap:12px;align-items:center}
+header img{width:52px;height:52px;border-radius:13px}
+h1{margin:0;font-size:22px;line-height:1.2}
+.back{font-size:13px;color:var(--mut);text-decoration:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+h2{margin:0 0 10px;font-size:13px;color:var(--mut);letter-spacing:.12em}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:22px 12px;text-align:center;display:grid;gap:8px;justify-items:center}
+.drop.over{border-color:var(--ac)}
+button{font:inherit;font-weight:700;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.08);color:var(--fg);padding:8px 14px;min-height:44px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;touch-action:manipulation}
+button.pri{background:linear-gradient(135deg,var(--ac),var(--ac2));border:0;color:#140a30;min-height:52px;padding:10px 22px}
+button.on{background:var(--ab);border-color:var(--ab);color:#2a1d00}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.msg{margin:6px 0 0;font-size:14px;color:var(--mut)}.msg.bad{color:var(--bad)}.msg.ok{color:var(--ok)}
+.wavebox{position:relative;height:96px;border-radius:12px;background:rgba(255,255,255,.05);overflow:hidden;touch-action:pan-y;cursor:pointer}
+.wavebox canvas{position:absolute;inset:0;width:100%;height:100%}
+.wavebox .reg{position:absolute;top:0;bottom:0;background:rgba(251,191,36,.22);border-left:2px solid var(--ab);border-right:2px solid var(--ab);pointer-events:none}
+.wavebox .head{position:absolute;top:0;bottom:0;width:2px;background:#fff;pointer-events:none}
+.times{display:flex;justify-content:space-between;font-size:13px;color:var(--mut);margin-top:6px;font-variant-numeric:tabular-nums}
+.times b{color:var(--fg)}
+input[type=range]{width:100%;accent-color:var(--ac);min-height:32px}
+.ctl{display:grid;gap:2px;margin-top:14px;font-size:14px}
+.ctl .t{display:flex;justify-content:space-between;color:var(--mut)}.ctl .t b{color:var(--fg);font-variant-numeric:tabular-nums}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.row>*{flex:1}
+.row.fixed>*{flex:none}
+.transport{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px}
+.transport .pri{grid-column:1/-1}
+.small{font-size:13px;color:var(--mut)}
+details{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
+summary{cursor:pointer;font-weight:700}
+details p,details li{font-size:14px;color:var(--mut);margin:.5em 0}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+ <header><img src="../../icons/practice.svg" alt="" width="52" height="52"><div><h1>練習プレーヤー</h1><a class="back" href="../">← 音楽ツール</a></div></header>
+
+ <section class="card">
+  <h2>1. 曲を選ぶ</h2>
+  <div class="drop" id="drop">
+   <button type="button" class="pri" id="pick">音のファイルを選ぶ</button>
+   <span class="msg" style="margin:0">mp3・m4a・wav など。動画のファイルも、音だけ使えます。ここにドラッグしても入れられます。</span>
+   <input id="file" type="file" accept="audio/*,video/*,.mp3,.m4a,.wav,.aac,.ogg,.flac,.mp4,.mov" hidden>
+  </div>
+  <p class="msg" id="loadmsg" role="status"></p>
+ </section>
+
+ <section class="card" id="player" hidden>
+  <h2>2. 練習する</h2>
+  <div class="wavebox" id="wavebox" aria-label="波形。さわると、その場所へ移動します">
+   <canvas id="wave"></canvas><div class="reg" id="reg" hidden></div><div class="head" id="head" style="left:0"></div>
+  </div>
+  <div class="times"><span><b id="cur">0:00.0</b></span><span id="abinfo"></span><span id="dur">0:00.0</span></div>
+  <div class="ctl"><div class="t"><span id="seekL">場所</span><b></b></div><input type="range" id="seek" min="0" max="1000" value="0" aria-labelledby="seekL"></div>
+
+  <div class="transport">
+   <button type="button" class="pri" id="play">再生</button>
+   <button type="button" id="back5">5秒もどる</button>
+   <button type="button" id="top">はじめへ</button>
+   <button type="button" id="fwd5">5秒すすむ</button>
+  </div>
+
+  <h2 style="margin-top:22px">A–B ループ</h2>
+  <div class="row">
+   <button type="button" id="setA">いまを A に</button>
+   <button type="button" id="setB">いまを B に</button>
+  </div>
+  <div class="row">
+   <button type="button" id="loop" disabled>ループ: なし</button>
+   <button type="button" id="clearAB">A–B を消す</button>
+  </div>
+
+  <h2 style="margin-top:22px">テンポ(音程は変わりません)</h2>
+  <div class="ctl" style="margin-top:0"><div class="t"><span id="tL">はやさ</span><b id="tVal">100%</b></div><input type="range" id="tempo" min="50" max="150" step="1" value="100" aria-labelledby="tL"></div>
+  <div class="row"><button type="button" data-t="-5">−5%</button><button type="button" data-t="reset">100%</button><button type="button" data-t="5">+5%</button></div>
+
+  <h2 style="margin-top:22px">音程(テンポは変わりません)</h2>
+  <div class="ctl" style="margin-top:0"><div class="t"><span id="pL">高さ</span><b id="pVal">0 半音</b></div><input type="range" id="pitch" min="-6" max="6" step="1" value="0" aria-labelledby="pL"></div>
+  <div class="row"><button type="button" data-p="-1">−1</button><button type="button" data-p="reset">0</button><button type="button" data-p="1">+1</button></div>
+  <p class="small" id="qnote">テンポや音程を変えると、少し音がにごることがあります。</p>
+ </section>
+
+ <details>
+  <summary>使い方と、できること・できないこと</summary>
+  <ol>
+   <li>音のファイルを選びます。</li>
+   <li>「再生」で聞きます。波形をさわる、または「場所」を動かすと、そこから聞けます。</li>
+   <li>くり返したい所で「いまを A に」、終わりで「いまを B に」を押し、「ループ」を押します。</li>
+   <li>むずかしい所は、テンポを下げてゆっくり練習できます。歌いやすい高さに、音程も変えられます。</li>
+  </ol>
+  <p><b>仕組み</b>: 外部の部品は使わず、この端末の中で音を作り直しています。テンポは、波形の似ている所でつなぎ直す方式(WSOLA)で、音程を変えずに伸び縮みさせます。音程は、同じ方式で逆向きに伸び縮みさせたあと、再生の速さを合わせて変えます(長さは、そのまま)。</p>
+  <p><b>限界</b>: 変える量が大きいほど、音が少しにごったり、うねったりします。特にテンポ 50% や、音程 ±5 半音より大きい設定、ドラムやボーカルが目立つ曲では、気になることがあります。スタジオ用のソフトほど、きれいではありません。声の高さの質感(ホルマント)は保たれず、音程を上げると声が細く、下げると太く聞こえます。</p>
+  <p>A–B ループのつなぎ目では、ほんの少し音がずれることがあります。曲をどこにも送りません。端末の中だけで動きます。</p>
+  <p>自分で楽しむ範囲で使ってください。曲の著作権に、気をつけてください。</p>
+ </details>
+</main>
+<script>
+(function(){
+ var $=function(i){return document.getElementById(i)};
+ var ctx=null,node=null,buf=null,dur=0,pos=0,playing=false,A=null,B=null,loopOn=false,ready=null,token=0;
+ function say(t,k){var e=$('loadmsg');e.textContent=t;e.className='msg'+(k?' '+k:'')}
+ function tfmt(s){s=Math.max(0,s);var m=Math.floor(s/60);return m+':'+(s-m*60).toFixed(1).padStart(4,'0')}
+ function post(m,tr){if(node)node.port.postMessage(m,tr||[])}
+
+ function ensureCtx(){
+  if(ready)return ready;
+  var AC=window.AudioContext||window.webkitAudioContext;
+  if(!AC||!window.AudioWorkletNode)return (ready=Promise.reject(new Error('worklet')));
+  ctx=new AC();
+  ready=ctx.audioWorklet.addModule('worklet.js').then(function(){
+   node=new AudioWorkletNode(ctx,'practice-proc',{numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[2]});
+   node.connect(ctx.destination);
+   node.port.onmessage=function(ev){var m=ev.data;
+    if(m.type==='pos'){pos=m.sec;paint()}
+    else if(m.type==='ended'){playing=false;$('play').textContent='再生';pos=0;paint()}};
+  });
+  return ready;
+ }
+
+ function wave(){
+  var c=$('wave'),w=c.clientWidth||600,h=c.clientHeight||96,dpr=Math.min(2,window.devicePixelRatio||1);
+  c.width=Math.floor(w*dpr);c.height=Math.floor(h*dpr);
+  var g=c.getContext('2d'),W=c.width,H=c.height,L=buf.getChannelData(0),R=buf.numberOfChannels>1?buf.getChannelData(1):L,step=Math.max(1,Math.floor(L.length/W));
+  g.clearRect(0,0,W,H);g.fillStyle='#a78bfa';
+  for(var x=0;x<W;x++){var mx=0,i0=x*step,i1=Math.min(L.length,i0+step);
+   for(var i=i0;i<i1;i+=Math.max(1,step>>5)){var v=Math.max(Math.abs(L[i]),Math.abs(R[i]));if(v>mx)mx=v}
+   var hh=Math.max(2,mx*H*0.9);g.fillRect(x,(H-hh)/2,1,hh)}
+ }
+ function paint(){
+  if(!buf)return;
+  $('head').style.left=(pos/dur*100)+'%';
+  $('cur').textContent=tfmt(pos);
+  if(document.activeElement!==$('seek'))$('seek').value=Math.round(pos/dur*1000);
+ }
+ function paintAB(){
+  var reg=$('reg');
+  if(A!=null&&B!=null&&B>A){reg.hidden=false;reg.style.left=(A/dur*100)+'%';reg.style.width=((B-A)/dur*100)+'%'}
+  else if(A!=null){reg.hidden=false;reg.style.left=(A/dur*100)+'%';reg.style.width='2px'}
+  else reg.hidden=true;
+  var ok=A!=null&&B!=null&&B-A>=0.2;
+  $('abinfo').textContent=(A!=null?'A '+tfmt(A):'')+(B!=null?'  B '+tfmt(B):'');
+  $('loop').disabled=!ok;if(!ok)loopOn=false;
+  $('loop').textContent='ループ: '+(loopOn?'入':'なし');$('loop').classList.toggle('on',loopOn);
+  post({type:'loop',on:loopOn&&ok,a:A||0,b:B||0});
+ }
+ function seekTo(s){pos=Math.min(dur,Math.max(0,s));post({type:'seek',sec:pos});paint()}
+
+ async function load(f){
+  var my=++token;
+  playing=false;$('play').textContent='再生';buf=null;$('player').hidden=true;
+  say('読み込んでいます…');
+  try{await ensureCtx()}catch(e){say(e.message==='worklet'?'このブラウザは、必要な機能(AudioWorklet)に対応していません。新しい Safari / Chrome で開いてください。':'音の部品を読み込めませんでした。','bad');ready=null;return}
+  try{
+   var ab=await f.arrayBuffer();
+   buf=await new Promise(function(ok,ng){var p=ctx.decodeAudioData(ab,ok,ng);if(p&&p.catch)p.catch(ng)});
+  }catch(e){buf=null;say('このファイルの音は、読み込めませんでした。mp3・m4a・wav などで試してください。','bad');return}
+  if(my!==token)return;
+  if(!buf||buf.length<1000){say('音が見つかりませんでした。','bad');buf=null;return}
+  dur=buf.duration;pos=0;A=B=null;loopOn=false;
+  var L=buf.getChannelData(0).slice(),R=buf.numberOfChannels>1?buf.getChannelData(1).slice():null;
+  post({type:'pause'});post({type:'load',L:L,R:R},R?[L.buffer,R.buffer]:[L.buffer]);
+  post({type:'tempo',v:$('tempo').value/100});post({type:'pitch',v:+$('pitch').value});
+  say(f.name+'(音の長さ '+tfmt(dur)+')','ok');
+  $('dur').textContent=tfmt(dur);$('player').hidden=false;wave();paint();paintAB();
+ }
+
+ $('play').onclick=async function(){
+  if(!buf)return;
+  try{await ctx.resume()}catch(e){}
+  playing=!playing;post({type:playing?'play':'pause'});$('play').textContent=playing?'一時停止':'再生';
+ };
+ $('back5').onclick=function(){seekTo(pos-5)};
+ $('fwd5').onclick=function(){seekTo(pos+5)};
+ $('top').onclick=function(){seekTo(A!=null&&loopOn?A:0)};
+ $('seek').addEventListener('input',function(){if(buf)seekTo($('seek').value/1000*dur)});
+ $('wavebox').addEventListener('click',function(e){if(!buf)return;var r=$('wavebox').getBoundingClientRect();seekTo((e.clientX-r.left)/r.width*dur)});
+ $('setA').onclick=function(){A=pos;if(B!=null&&B<=A)B=null;paintAB()};
+ $('setB').onclick=function(){if(A==null||pos<=A+0.2){$('abinfo').textContent='先に A を決めて、そのあとで B';return}B=pos;if(!loopOn){loopOn=true}paintAB()};
+ $('loop').onclick=function(){loopOn=!loopOn;paintAB()};
+ $('clearAB').onclick=function(){A=B=null;loopOn=false;paintAB()};
+
+ function setTempo(v){v=Math.min(150,Math.max(50,v));$('tempo').value=v;$('tVal').textContent=v+'%';post({type:'tempo',v:v/100})}
+ function setPitch(v){v=Math.min(6,Math.max(-6,v));$('pitch').value=v;$('pVal').textContent=(v>0?'+':v<0?'−':'')+Math.abs(v)+' 半音';post({type:'pitch',v:v})}
+ $('tempo').addEventListener('input',function(){setTempo(+this.value)});
+ $('pitch').addEventListener('input',function(){setPitch(+this.value)});
+ document.querySelectorAll('[data-t]').forEach(function(b){b.onclick=function(){var d=b.dataset.t;setTempo(d==='reset'?100:+$('tempo').value+ +d)}});
+ document.querySelectorAll('[data-p]').forEach(function(b){b.onclick=function(){var d=b.dataset.p;setPitch(d==='reset'?0:+$('pitch').value+ +d)}});
+
+ $('pick').onclick=function(){$('file').click()};
+ $('file').onchange=function(e){var f=e.target.files[0];e.target.value='';if(f){ensureCtx().catch(function(){});load(f)}};
+ var dr=$('drop');
+ ['dragenter','dragover'].forEach(function(n){dr.addEventListener(n,function(e){e.preventDefault();dr.classList.add('over')})});
+ ['dragleave','drop'].forEach(function(n){dr.addEventListener(n,function(e){e.preventDefault();dr.classList.remove('over')})});
+ dr.addEventListener('drop',function(e){var f=e.dataTransfer&&e.dataTransfer.files[0];if(f){ensureCtx().catch(function(){});load(f)}});
+ window.addEventListener('resize',function(){if(buf)wave()});
+})();
+</script>
+</body>
+</html>

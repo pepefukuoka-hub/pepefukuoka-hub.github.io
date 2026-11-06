@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="テンポとキー">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="../../icons/tempo-key.svg">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>曲のテンポとキーを調べる</title>
+<script src="../analyze.js"></script>
+<script src="tempo-key.js"></script>
+<style>
+:root{--bg:#0b1020;--card:rgba(255,255,255,.06);--fg:#f1f4ff;--mut:#9aa5c4;--line:rgba(255,255,255,.12);--ac:#fb7185;--ac2:#f59e0b;--bad:#ff8a80;--ok:#6ee7b7}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg)}
+body{color:var(--fg);font:16px/1.6 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+ padding:calc(env(safe-area-inset-top, 0px) + 36px) max(16px,env(safe-area-inset-right)) max(48px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:radial-gradient(60vmax 60vmax at 0% 0%,rgba(251,113,133,.26),transparent 60%),radial-gradient(50vmax 50vmax at 100% 100%,rgba(245,158,11,.16),transparent 60%)}
+main{max-width:680px;margin:0 auto;display:grid;gap:14px}
+header{display:flex;gap:12px;align-items:center}
+header img{width:52px;height:52px;border-radius:13px}
+h1{margin:0;font-size:22px;line-height:1.2}
+.back{font-size:13px;color:var(--mut);text-decoration:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+h2{margin:0 0 10px;font-size:13px;color:var(--mut);letter-spacing:.12em}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:22px 12px;text-align:center;display:grid;gap:8px;justify-items:center}
+.drop.over{border-color:var(--ac)}
+button{font:inherit;font-weight:700;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.08);color:var(--fg);padding:8px 14px;min-height:44px;cursor:pointer;touch-action:manipulation}
+button.pri{background:linear-gradient(135deg,var(--ac),var(--ac2));border:0;color:#2a0a10;min-height:48px;padding:10px 20px}
+button:focus-visible,summary:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.msg{margin:6px 0 0;font-size:14px;color:var(--mut)}.msg.bad{color:var(--bad)}.msg.ok{color:var(--ok)}
+.res{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.box{border:1px solid var(--line);border-radius:14px;padding:12px;background:rgba(255,255,255,.04);min-width:0}
+.box small{display:block;color:var(--mut);font-size:12px;letter-spacing:.1em}
+.big{font-size:40px;line-height:1.15;font-weight:800;font-variant-numeric:tabular-nums;background:linear-gradient(90deg,#fff,#fecdd3);-webkit-background-clip:text;background-clip:text;color:transparent}
+.big.k{font-size:28px}
+.sub{font-size:13px;color:var(--mut);margin:4px 0 0}
+.warn{margin-top:12px;font-size:14px;border-left:3px solid var(--ac2);padding:4px 0 4px 12px;color:var(--fg)}
+details{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
+summary{cursor:pointer;font-weight:700}
+details p,details li{font-size:14px;color:var(--mut);margin:.5em 0}
+[hidden]{display:none!important}
+@media (max-width:360px){.res{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+ <header><img src="../../icons/tempo-key.svg" alt="" width="52" height="52"><div><h1>曲のテンポとキーを調べる</h1><a class="back" href="../">← 音楽ツール</a></div></header>
+
+ <section class="card">
+  <h2>1. 曲を選ぶ</h2>
+  <div class="drop" id="drop">
+   <button type="button" class="pri" id="pick">音のファイルを選ぶ</button>
+   <span class="msg" style="margin:0">mp3・m4a・wav など。動画のファイルも、音だけ使えます。ここにドラッグしても入れられます。</span>
+   <input id="file" type="file" accept="audio/*,video/*,.mp3,.m4a,.wav,.aac,.ogg,.flac,.mp4,.mov" hidden>
+  </div>
+  <p class="msg" id="loadmsg" role="status"></p>
+ </section>
+
+ <section class="card" id="out" hidden>
+  <h2>2. 結果(おおまか)</h2>
+  <div class="res">
+   <div class="box"><small>テンポ</small><div class="big" id="bpm">—</div><p class="sub" id="bpmSub"></p></div>
+   <div class="box"><small>キー(調)</small><div class="big k" id="key">—</div><p class="sub" id="keySub"></p></div>
+  </div>
+  <p class="warn">どちらも <b>おおまかな目安</b> です。ずれたり、倍・半分になったりすることがあります。耳でも確かめてください。</p>
+  <p class="msg" id="note"></p>
+ </section>
+
+ <details>
+  <summary>使い方と、できること・できないこと</summary>
+  <ol>
+   <li>音のファイル(動画でも可)を選びます。</li>
+   <li>数秒〜十数秒で、テンポ(BPM)と、キー(調)が出ます。</li>
+  </ol>
+  <p><b>テンポ</b>は、音の強い所(ドラムなど)のくり返しから、約 60〜200 の間で推定します。倍や半分で数えてしまうことがあるので、その候補も出します。テンポが変わる曲や、リズムのはっきりしない曲は、苦手です。</p>
+  <p><b>キー</b>は、使われている音の偏りから推定します。同じ音階の「メジャー/マイナー」(たとえば C メジャーと A マイナー)は、取り違えやすいです。転調する曲、ほとんど音階のない曲は、当たりません。</p>
+  <p>4分より長い曲は、まん中の4分だけを調べます。AI は使いません。曲を、どこにも送りません。端末の中だけで動きます。</p>
+  <p>自分で楽しむ範囲で使ってください。曲の著作権に、気をつけてください。</p>
+ </details>
+</main>
+<script>
+(function(){
+ var $=function(i){return document.getElementById(i)},SR=44100,token=0;
+ function say(t,k){var e=$('loadmsg');e.textContent=t;e.className='msg'+(k?' '+k:'')}
+ function decode(f){
+  return f.arrayBuffer().then(function(ab){
+   var ctx=new (window.OfflineAudioContext||window.webkitOfflineAudioContext)(2,1,SR);
+   return new Promise(function(ok,ng){var p=ctx.decodeAudioData(ab,ok,ng);if(p&&p.catch)p.catch(ng)});
+  });
+ }
+ function load(f){
+  var my=++token;$('out').hidden=true;say('読み込んでいます…');
+  decode(f).then(function(buf){
+   if(my!==token)return;
+   if(!buf||buf.length<SR){say('音が短すぎるか、見つかりませんでした。','bad');return}
+   say('調べています…(曲の長さによって、数秒〜数十秒かかります)');
+   setTimeout(function(){
+    try{
+     var L=buf.getChannelData(0),R=buf.numberOfChannels>1?buf.getChannelData(1):L,m=TempoKey.middle(L,R,buf.sampleRate);
+     var r=TempoKey.describe(Analyze.run(m.L,m.R,buf.sampleRate));
+     if(my!==token)return;
+     $('bpm').textContent=r.bpm?'約 '+r.bpm:'—';
+     $('bpmSub').textContent=r.bpm?'BPM(倍なら '+r.double+'、半分なら '+r.half+')':'見つかりませんでした';
+     $('key').textContent=r.key||'—';
+     $('keySub').textContent=r.key?'同じ音階の別名: '+r.rel:'見つかりませんでした';
+     $('note').textContent=[r.keyNote,m.cut?'長い曲なので、まん中の4分だけを調べました。':''].filter(Boolean).join(' ');
+     $('out').hidden=false;say(f.name+'(長さ '+Math.floor(buf.duration/60)+'分'+Math.round(buf.duration%60)+'秒)','ok');
+    }catch(e){say('調べられませんでした。','bad')}
+   },60);
+  }).catch(function(){say('このファイルの音は、読み込めませんでした。mp3・m4a・wav などで試してください。動画は、「動画から音を取り出す」で WAV にすると使えます。','bad')});
+ }
+ $('pick').onclick=function(){$('file').click()};
+ $('file').onchange=function(e){var f=e.target.files[0];e.target.value='';if(f)load(f)};
+ var dr=$('drop');
+ ['dragenter','dragover'].forEach(function(n){dr.addEventListener(n,function(e){e.preventDefault();dr.classList.add('over')})});
+ ['dragleave','drop'].forEach(function(n){dr.addEventListener(n,function(e){e.preventDefault();dr.classList.remove('over')})});
+ dr.addEventListener('drop',function(e){var f=e.dataTransfer&&e.dataTransfer.files[0];if(f)load(f)});
+})();
+</script>
+</body>
+</html>

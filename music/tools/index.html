@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="メトロノーム">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="../../icons/metronome.svg">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>メトロノームとチューナー</title>
+<script src="core.js"></script>
+<style>
+:root{--bg:#0b1020;--card:rgba(255,255,255,.06);--fg:#f1f4ff;--mut:#9aa5c4;--line:rgba(255,255,255,.12);--ac:#2dd4bf;--ac2:#38bdf8;--bad:#ff8a80;--ok:#6ee7b7;--warn:#fbbf24}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg)}
+body{color:var(--fg);font:16px/1.6 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+ padding:calc(env(safe-area-inset-top, 0px) + 36px) max(16px,env(safe-area-inset-right)) max(48px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:radial-gradient(60vmax 60vmax at 0% 0%,rgba(45,212,191,.24),transparent 60%),radial-gradient(50vmax 50vmax at 100% 100%,rgba(56,189,248,.18),transparent 60%)}
+main{max-width:680px;margin:0 auto;display:grid;gap:14px}
+header{display:flex;gap:12px;align-items:center}
+header img{width:52px;height:52px;border-radius:13px}
+h1{margin:0;font-size:22px;line-height:1.2}
+.back{font-size:13px;color:var(--mut);text-decoration:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+[role=tablist]{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+[role=tab]{font:inherit;font-weight:700;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--mut);min-height:48px;cursor:pointer}
+[role=tab][aria-selected=true]{background:linear-gradient(135deg,var(--ac),var(--ac2));border:0;color:#042a2a}
+button{font:inherit;font-weight:700;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.08);color:var(--fg);padding:8px 14px;min-height:48px;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+button.pri{background:linear-gradient(135deg,var(--ac),var(--ac2));border:0;color:#042a2a;min-height:56px;font-size:18px}
+button:focus-visible,input:focus-visible,select:focus-visible,[role=tab]:focus-visible,summary:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.msg{margin:6px 0 0;font-size:14px;color:var(--mut)}.msg.bad{color:var(--bad)}.msg.ok{color:var(--ok)}
+h2{margin:0 0 10px;font-size:13px;color:var(--mut);letter-spacing:.12em}
+.bpmrow{display:grid;grid-template-columns:64px 1fr 64px;gap:10px;align-items:center}
+.bpm{text-align:center;font-size:72px;line-height:1.05;font-weight:800;font-variant-numeric:tabular-nums}
+.bpm small{display:block;font-size:13px;font-weight:600;color:var(--mut);letter-spacing:.2em}
+input[type=range]{width:100%;accent-color:var(--ac);min-height:36px;margin-top:8px}
+.dots{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:16px 0 8px;min-height:26px}
+.dots i{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid var(--line);transition:background .06s,transform .06s}
+.dots i.first{border-color:var(--warn)}
+.dots i.on{background:var(--ac);transform:scale(1.25)}
+.dots i.first.on{background:var(--warn)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+label.f{display:grid;gap:4px;font-size:13px;color:var(--mut)}
+select,input[type=number]{font:inherit;font-size:16px;color:var(--fg);background:#161c33;border:1px solid var(--line);border-radius:10px;padding:10px;min-height:48px;width:100%}
+.chk{display:flex;gap:10px;align-items:center;font-size:15px;min-height:48px}
+.chk input{width:22px;height:22px;accent-color:var(--ac)}
+.row{display:flex;gap:10px;margin-top:12px}.row>*{flex:1}
+.note{font-size:84px;line-height:1.05;font-weight:800;text-align:center;min-height:90px}
+.note sub{font-size:28px;vertical-align:baseline;color:var(--mut);font-weight:600}
+.kana{text-align:center;color:var(--mut);font-size:14px;min-height:22px}
+.meter{position:relative;height:64px;margin:14px 6px 6px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line);overflow:hidden}
+.meter .tick{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.14)}
+.meter .zone{position:absolute;top:0;bottom:0;left:45%;width:10%;background:rgba(110,231,183,.14)}
+.meter .zero{position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;background:rgba(110,231,183,.7)}
+.meter .needle{position:absolute;top:6px;bottom:6px;width:6px;margin-left:-3px;border-radius:3px;left:50%;background:#fff;transition:left .08s linear,background .15s,opacity .2s}
+.meter .needle.ok{background:var(--ok)}
+.meter .needle.off{opacity:.15}
+.scale{display:flex;justify-content:space-between;margin:0 6px;font-size:12px;color:var(--mut)}
+.read{text-align:center;font-size:18px;font-variant-numeric:tabular-nums;margin-top:10px;min-height:30px}
+.ref{display:grid;grid-template-columns:56px 1fr 56px;gap:8px;align-items:end;margin-top:16px}
+details{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
+summary{cursor:pointer;font-weight:700}
+details p,details li{font-size:14px;color:var(--mut);margin:.5em 0}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+ <header><img src="../../icons/metronome.svg" alt="" width="52" height="52"><div><h1>メトロノームとチューナー</h1><a class="back" href="../">← 音楽ツール</a></div></header>
+
+ <div role="tablist" aria-label="切りかえ">
+  <button type="button" role="tab" id="tabM" aria-selected="true" aria-controls="pM">メトロノーム</button>
+  <button type="button" role="tab" id="tabT" aria-selected="false" aria-controls="pT" tabindex="-1">チューナー</button>
+ </div>
+
+ <section class="card" id="pM" role="tabpanel" aria-labelledby="tabM">
+  <div class="bpmrow">
+   <button type="button" id="minus" aria-label="1 下げる">−</button>
+   <div class="bpm"><span id="bpmV">120</span><small>BPM</small></div>
+   <button type="button" id="plus" aria-label="1 上げる">+</button>
+  </div>
+  <input type="range" id="bpm" min="30" max="300" step="1" value="120" aria-label="テンポ(BPM)">
+  <div class="dots" id="dots" aria-hidden="true"></div>
+  <div class="grid">
+   <label class="f">拍子(1小節の拍数)<select id="beats"></select></label>
+   <label class="f">BPM を数字で<input type="number" id="bpmN" min="30" max="300" step="1" inputmode="numeric" value="120"></label>
+  </div>
+  <label class="chk"><input type="checkbox" id="accent" checked>1拍目を強く(アクセント)</label>
+  <div class="row"><button type="button" class="pri" id="go">スタート</button><button type="button" id="tap">タップテンポ</button></div>
+  <p class="msg" id="mmsg" role="status">タップテンポ: 好きなリズムで、くり返しタップしてください。</p>
+ </section>
+
+ <section class="card" id="pT" role="tabpanel" aria-labelledby="tabT" hidden>
+  <div class="note" id="note" aria-live="polite">—</div>
+  <div class="kana" id="kana"></div>
+  <div class="meter" aria-hidden="true"><div class="zone"></div><div class="zero"></div><div class="needle off" id="needle"></div></div>
+  <div class="scale" aria-hidden="true"><span>−50</span><span>低い ←</span><span>0</span><span>→ 高い</span><span>+50</span></div>
+  <div class="read" id="read" role="status">マイクを始めてください</div>
+  <div class="row"><button type="button" class="pri" id="mic">マイクをはじめる</button></div>
+  <p class="msg" id="tmsg"></p>
+  <div class="ref">
+   <button type="button" id="aMinus" aria-label="基準音を 1Hz 下げる">−</button>
+   <label class="f">基準音 A =(Hz)<input type="number" id="a4" min="400" max="480" step="1" inputmode="numeric" value="440"></label>
+   <button type="button" id="aPlus" aria-label="基準音を 1Hz 上げる">+</button>
+  </div>
+  <div class="row"><button type="button" id="a440">440 にもどす</button></div>
+ </section>
+
+ <details>
+  <summary>使い方と、できること・できないこと</summary>
+  <p><b>メトロノーム</b>: BPM は 30〜300。音は、先に少し先まで予約して鳴らすので、画面を触っていても、ずれにくい作りです。タップテンポは、直近の最大 8 回のタップの間隔から、平均を出します(2秒あいたら、数えなおし)。画面を閉じる・ほかのアプリに切り替えると、止まることがあります。</p>
+  <p><b>チューナー</b>: マイクの音の高さを、自己相関という方法で調べて、いちばん近い音名と、ズレ(セント。100 セントで半音)を出します。単音(ギター・ベース・声・管楽器など)向けです。和音や、うるさい場所では、当たりません。基準音(A)は 400〜480Hz で変えられます。</p>
+  <p>マイクの音は、この端末の中で調べるだけで、録音も、送信もしません。初めて使うときは、マイクの許可が必要です。チューナーを開いている間だけマイクを使い、メトロノームの画面に切りかえると、マイクもメトロノームも止まります。</p>
+ </details>
+</main>
+<script>
+(function(){
+ var $=function(i){return document.getElementById(i)},MC=MusicCore;
+ function AC(){return window.AudioContext||window.webkitAudioContext}
+
+ // ---- タブ ----
+ var tabs=[['tabM','pM'],['tabT','pT']];
+ function show(which){
+  tabs.forEach(function(t,i){var on=i===which;$(t[0]).setAttribute('aria-selected',on);$(t[0]).tabIndex=on?0:-1;$(t[1]).hidden=!on});
+  if(which===1)metStop();else micStop();
+ }
+ $('tabM').onclick=function(){show(0)};$('tabT').onclick=function(){show(1)};
+ tabs.forEach(function(t,i){$(t[0]).addEventListener('keydown',function(e){if(e.key==='ArrowRight'||e.key==='ArrowLeft'){var j=1-i;show(j);$(tabs[j][0]).focus()}})});
+
+ // ---- メトロノーム ----
+ var ctx=null,sched=null,timer=null,pending=[],raf=0,tapTimes=[],running=false;
+ var sel=$('beats');for(var b=1;b<=12;b++){var o=document.createElement('option');o.value=b;o.textContent=b+' 拍子';if(b===4)o.selected=true;sel.appendChild(o)}
+ function beats(){return +sel.value}
+ function dots(){var d=$('dots');d.innerHTML='';for(var i=0;i<beats();i++){var e=document.createElement('i');if(i===0&&$('accent').checked)e.className='first';d.appendChild(e)}}
+ function setBpm(v){v=Math.round(Math.min(300,Math.max(30,+v||120)));$('bpm').value=v;$('bpmN').value=v;$('bpmV').textContent=v;if(sched)sched.bpm=v}
+ function click(beat,time){
+  var accent=$('accent').checked&&beat===0,osc=ctx.createOscillator(),g=ctx.createGain();
+  osc.type='square';osc.frequency.value=accent?1600:1000;
+  g.gain.setValueAtTime(0.0001,time);g.gain.exponentialRampToValueAtTime(accent?0.55:0.35,time+0.002);g.gain.exponentialRampToValueAtTime(0.0001,time+0.05);
+  osc.connect(g);g.connect(ctx.destination);osc.start(time);osc.stop(time+0.06);
+  pending.push({t:time,b:beat});
+ }
+ function anim(){
+  if(!running)return;
+  var now=ctx.currentTime,ds=$('dots').children;
+  while(pending.length&&pending[0].t<=now){var p=pending.shift();for(var i=0;i<ds.length;i++)ds[i].classList.toggle('on',i===p.b)}
+  if(pending.length===0&&ds.length){/* 次の拍までそのまま */}
+  raf=requestAnimationFrame(anim);
+ }
+ function metStart(){
+  var C=AC();if(!C){$('mmsg').textContent='このブラウザは、音を鳴らす機能に対応していません。';return}
+  if(!ctx)ctx=new C();
+  ctx.resume();pending=[];dots();
+  sched=new MC.Scheduler({now:function(){return ctx.currentTime},schedule:click,bpm:+$('bpm').value,beats:beats()});
+  running=true;sched.start(0.08);timer=setInterval(function(){sched.tick()},25);raf=requestAnimationFrame(anim);
+  $('go').textContent='ストップ';
+ }
+ function metStop(){
+  if(!running)return;running=false;if(sched)sched.stop();clearInterval(timer);cancelAnimationFrame(raf);pending=[];
+  Array.prototype.forEach.call($('dots').children,function(e){e.classList.remove('on')});$('go').textContent='スタート';
+ }
+ $('go').onclick=function(){running?metStop():metStart()};
+ $('bpm').addEventListener('input',function(){setBpm(this.value)});
+ $('bpmN').addEventListener('change',function(){setBpm(this.value)});
+ $('minus').onclick=function(){setBpm(+$('bpm').value-1)};$('plus').onclick=function(){setBpm(+$('bpm').value+1)};
+ sel.onchange=function(){dots();if(sched)sched.setBeats(beats())};
+ $('accent').onchange=dots;
+ $('tap').addEventListener('pointerdown',function(e){
+  e.preventDefault();tapTimes.push(performance.now());tapTimes=tapTimes.slice(-12);
+  var v=MC.tapTempo(tapTimes);
+  if(v){setBpm(v);$('mmsg').textContent='タップから: 約 '+v+' BPM'+(v<30||v>300?'(30〜300 の範囲に直しました)':'')}
+  else $('mmsg').textContent='もう一度タップしてください…';
+ });
+ $('tap').addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();$('tap').dispatchEvent(new Event('pointerdown'))}});
+ dots();
+
+ // ---- チューナー ----
+ var mic=null,tctx=null,an=null,tbuf=null,ttimer=0,hist=[],lastGood=0,a4=440,needleX=0;
+ try{var sv=+localStorage.getItem('tools.a4');if(sv>=400&&sv<=480)a4=sv}catch(e){}
+ function setA4(v){a4=Math.round(Math.min(480,Math.max(400,+v||440)));$('a4').value=a4;try{localStorage.setItem('tools.a4',a4)}catch(e){}}
+ setA4(a4);
+ $('a4').addEventListener('change',function(){setA4(this.value)});
+ $('aMinus').onclick=function(){setA4(a4-1)};$('aPlus').onclick=function(){setA4(a4+1)};$('a440').onclick=function(){setA4(440)};
+ function median(a){var s=a.slice().sort(function(x,y){return x-y});return s[s.length>>1]}
+ function paintNote(n,f){
+  var nd=$('needle');
+  if(!n){$('note').textContent='—';$('kana').textContent='';nd.classList.add('off');$('read').textContent='音を探しています…';return}
+  var c=Math.max(-50,Math.min(50,n.cents));
+  $('note').innerHTML=n.name+'<sub>'+n.octave+'</sub>';$('kana').textContent=n.kana;
+  nd.classList.remove('off');nd.style.left=(50+c)+'%';nd.classList.toggle('ok',Math.abs(n.cents)<=5);
+  $('read').textContent=(n.cents>=0?'+':'−')+Math.abs(n.cents).toFixed(0)+' セント ・ '+f.toFixed(1)+' Hz'+(Math.abs(n.cents)<=5?' ・ OK':n.cents<0?' ・ 低い':' ・ 高い');
+ }
+ function loop(){
+  if(!an)return;
+  an.getFloatTimeDomainData(tbuf);
+  var r=MC.detectPitch(tbuf,tctx.sampleRate,{minFreq:50,maxFreq:1200,minRms:0.008,clarity:0.85}),now=performance.now();
+  if(r){hist.push(12*Math.log2(r.freq/a4));hist=hist.slice(-5);lastGood=now}
+  else if(now-lastGood>500)hist=[];
+  if(hist.length>=3){var m=median(hist),f=a4*Math.pow(2,m/12);paintNote(MC.freqToNote(f,a4),f)}
+  else if(!r&&now-lastGood>500)paintNote(null);
+ }
+ function micStop(){
+  if(ttimer){clearInterval(ttimer);ttimer=0}
+  if(mic){mic.getTracks().forEach(function(t){t.stop()});mic=null}
+  if(tctx){tctx.close();tctx=null}an=null;hist=[];
+  $('mic').textContent='マイクをはじめる';paintNote(null);$('read').textContent='マイクを始めてください';
+ }
+ $('mic').onclick=function(){
+  if(mic){micStop();return}
+  var C=AC();
+  if(!C||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){$('tmsg').textContent='このブラウザでは、マイクが使えません。https のページで、新しい Safari / Chrome を使ってください。';$('tmsg').className='msg bad';return}
+  $('tmsg').textContent='マイクの許可を待っています…';$('tmsg').className='msg';
+  navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}}).then(function(s){
+   mic=s;tctx=new C();tctx.resume();
+   var src=tctx.createMediaStreamSource(s);an=tctx.createAnalyser();an.fftSize=2048;an.smoothingTimeConstant=0;src.connect(an); // どこにも出力しない(ハウリング防止)
+   tbuf=new Float32Array(an.fftSize);lastGood=performance.now();hist=[];
+   ttimer=setInterval(loop,50);$('mic').textContent='マイクをとめる';$('tmsg').textContent='音を出してみてください。マイクの音は、端末の中だけで調べています。';$('tmsg').className='msg ok';
+   $('read').textContent='音を探しています…';
+  }).catch(function(e){
+   $('tmsg').textContent=(e&&e.name==='NotAllowedError')?'マイクの許可がありません。ブラウザの設定で、このページのマイクを許可してください。':'マイクを開けませんでした。';$('tmsg').className='msg bad';
+  });
+ };
+ document.addEventListener('visibilitychange',function(){if(document.hidden){micStop()}});
+})();
+</script>
+</body>
+</html>
