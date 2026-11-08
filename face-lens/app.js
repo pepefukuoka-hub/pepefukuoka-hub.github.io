@@ -1,9 +1,10 @@
 const $=id=>document.getElementById(id);
-let detector,stream,raf,lastVideoTime=-1,source='none',generation=0,busy=false,loading;
+let detector,stream,raf,lastVideoTime=-1,source='none',generation=0,busy=false,loading,lastPhotoResult=null;
 const ctx=$('overlay').getContext('2d');
 function status(text){$('status').textContent='● '+text;}
 function error(text){$('error').textContent=text;$('error').hidden=!text;}
-function controls(){ $('start').disabled=busy||!!stream; $('stop').disabled=!stream; $('file').disabled=busy; }
+function result(text,state='pending'){const el=$('photo-result');el.textContent=text;el.dataset.state=state;el.hidden=!text;}
+function controls(){ $('detect').disabled=busy||source!=='photo'; $('detect').textContent=busy&&source==='photo'?'検出しています…':'写真の顔を検出する'; $('start').disabled=busy||!!stream; $('stop').disabled=!stream; $('file').disabled=busy; }
 async function load(){
  if(detector)return detector;
  if(!loading) loading=(async()=>{
@@ -36,7 +37,7 @@ function loop(token){if(token!==generation||!stream)return;
  try{const video=$('video');if(video.readyState>=2&&video.currentTime!==lastVideoTime){lastVideoTime=video.currentTime;const t=performance.now();render(detector.detectForVideo(video,t),video);$('timing').textContent=Math.round(performance.now()-t)+' ms / frame';status('検出中');}raf=requestAnimationFrame(()=>loop(token));}
  catch(e){stop();error('顔の検出を続けられませんでした。カメラを再起動してください。');console.error(e);}}
 $('start').onclick=async()=>{
- if(busy)return;busy=true;error('');controls();stop(false);const token=generation;
+ if(busy)return;busy=true;error('');result('');lastPhotoResult=null;controls();stop(false);const token=generation;
  try{
   if(!navigator.mediaDevices?.getUserMedia)throw new Error('unsupported');
   await load();if(token!==generation)return;await detector.setOptions({runningMode:'VIDEO'});
@@ -51,13 +52,39 @@ $('stop').onclick=()=>stop();
 $('file').onchange=async e=>{
  const file=e.target.files?.[0];if(!file||busy)return;
  if(!file.type.startsWith('image/')){error('画像ファイルを選んでください。');return;}
- busy=true;stop(false);controls();error('');const token=generation;const url=URL.createObjectURL(file);
- try{await load();if(token!==generation)return;await detector.setOptions({runningMode:'IMAGE'});$('photo').src=url;await $('photo').decode();if(token!==generation)return;source='photo';$('photo').hidden=false;$('video').hidden=true;$('empty').hidden=true;$('mode').textContent='PHOTO VIEW';mirror();const t=performance.now();render(detector.detect($('photo')),$('photo'));status('写真の検出が完了');$('timing').textContent=Math.round(performance.now()-t)+' ms';}
- catch(e){status('写真を読み込めませんでした');error(e.message==='webgl'?'このブラウザではWebGLを使えません。通常のSafariやChromeで開いてください。':'画像の解析に失敗しました。JPG・PNGの画像と通信環境を確認し、再度お試しください。');console.error(e);}
+ busy=true;stop(false);controls();error('');lastPhotoResult=null;
+ $('count').textContent='—';$('overlay').width=0;result('写真を読み込んでいます…');
+ const token=generation,url=URL.createObjectURL(file);
+ try{
+  $('photo').src=url;await $('photo').decode();if(token!==generation)return;
+  source='photo';$('photo').hidden=false;$('video').hidden=true;$('empty').hidden=true;
+  $('mode').textContent='PHOTO VIEW';mirror();status('写真を選択しました');$('timing').textContent='未検出';
+  result('写真を選択しました。「写真の顔を検出する」を押してください。');
+ }catch(e){source='none';$('photo').hidden=true;$('empty').hidden=false;status('写真を読み込めませんでした');result('写真を読み込めませんでした。別のJPG・PNG画像を選んでください。','error');}
  finally{URL.revokeObjectURL(url);busy=false;controls();e.target.value='';}
 };
+$('detect').onclick=async()=>{
+ if(busy||source!=='photo')return;
+ busy=true;error('');lastPhotoResult=null;$('count').textContent='—';$('overlay').width=0;controls();
+ const token=generation;
+ result('検出しています… 初回はAIの読み込みに時間がかかります。');
+ try{
+  await load();if(token!==generation)return;
+  await detector.setOptions({runningMode:'IMAGE'});
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  if(token!==generation)return;
+  const t=performance.now();lastPhotoResult=detector.detect($('photo'));render(lastPhotoResult,$('photo'));
+  const n=lastPhotoResult.detections.length;
+  status('検出完了');$('timing').textContent=Math.round(performance.now()-t)+' ms';
+  result(n>0?'検出完了：顔を'+n+'人検出しました。写真の緑の枠を確認してください。':'検出完了：顔が見つかりませんでした。明るく、顔が大きく正面に写った写真で試してください。',n>0?'success':'empty');
+ }catch(e){
+  status('検出できませんでした');$('timing').textContent='検出エラー';
+  const message=e.message==='webgl'?'このブラウザではWebGLを使えません。SafariやChromeで開いてください。':'AIの読み込み、または検出に失敗しました。通信環境を確認し、もう一度ボタンを押してください。';
+  result('検出エラー：'+message,'error');error(message);console.error(e);
+ }finally{busy=false;controls();}
+};
 $('mirror').onchange=mirror;
-function redraw(){if(source==='photo'&&detector&&!busy)render(detector.detect($('photo')),$('photo'));}
+function redraw(){if(source==='photo'&&lastPhotoResult&&!busy)render(lastPhotoResult,$('photo'));}
 $('points').onchange=redraw;window.addEventListener('resize',redraw);
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&stream)stop();});
 window.addEventListener('pagehide',()=>stop());
