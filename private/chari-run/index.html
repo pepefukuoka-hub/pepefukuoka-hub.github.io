@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>チャリラン｜チャリ走風・自転車ジャンプゲーム</title>
+<style>* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: #10222e;
+  font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  display: flex;
+  justify-content: center;
+}
+#wrap {
+  width: min(96vw, 960px);
+  padding: 12px 0 20px;
+  text-align: center;
+}
+canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: #aee3ff;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.note {
+  color: #bcd6e4;
+  font-size: 13px;
+  margin: 10px 4px 0;
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="960" height="540"></canvas>
+  <p class="note">長押しでジャンプをためて、離すと飛ぶ。障害物に当たると転倒。スマホ・PC両対応。</p>
+</div>
+<script>// チャリラン：チャリ走風の自転車ジャンプゲーム
+// 長押しでジャンプをため、離すと飛ぶ。障害物の側面に当たると転倒、上には乗れる。
+(() => {
+  'use strict';
+
+  const cv = document.getElementById('game');
+  const ctx = cv.getContext('2d');
+  const W = 960, H = 540;
+  const GROUND_Y = 452;
+  const GRAV = 2500;
+  const PX = 200; // 自転車の画面上の基準位置
+
+  const S = {
+    mode: 'title', // title | run | over
+    t: 0,
+    overAt: 0,
+    dist: 0,
+    speed: 0,
+    best: Number(localStorage.getItem('chari-run-best') || 0),
+    charge: 0,
+    charging: false,
+    py: GROUND_Y, // タイヤ接地点の高さ
+    vy: 0,
+    grounded: true,
+    wheel: 0,
+    bgx: 0,
+    obstacles: [],
+    spawnIn: 600,
+    crashRot: 0,
+    clouds: [
+      { x: 120, y: 74, s: 1.0 },
+      { x: 430, y: 118, s: 0.7 },
+      { x: 760, y: 62, s: 1.25 },
+    ],
+  };
+
+  function reset() {
+    S.dist = 0;
+    S.speed = 330;
+    S.py = GROUND_Y;
+    S.vy = 0;
+    S.grounded = true;
+    S.charge = 0;
+    S.charging = false;
+    S.obstacles = [];
+    S.spawnIn = 650;
+    S.crashRot = 0;
+  }
+
+  function startRun() {
+    reset();
+    S.mode = 'run';
+  }
+
+  function gameOver() {
+    S.mode = 'over';
+    S.overAt = S.t;
+    const d = Math.floor(S.dist);
+    if (d > S.best) {
+      S.best = d;
+      localStorage.setItem('chari-run-best', String(d));
+    }
+  }
+
+  // ---------- 入力 ----------
+  function press(e) {
+    if (e) e.preventDefault();
+    if (S.mode === 'title') { startRun(); return; }
+    if (S.mode === 'over') {
+      if (S.t - S.overAt > 0.6) startRun();
+      return;
+    }
+    if (S.grounded) S.charging = true;
+  }
+
+  function release(e) {
+    if (e) e.preventDefault();
+    if (S.mode === 'run' && S.charging && S.grounded) {
+      S.vy = -(620 + 680 * S.charge);
+      S.grounded = false;
+    }
+    S.charging = false;
+    S.charge = 0;
+  }
+
+  cv.addEventListener('pointerdown', press);
+  window.addEventListener('pointerup', release);
+  cv.addEventListener('contextmenu', (e) => e.preventDefault());
+  window.addEventListener('keydown', (e) => {
+    if ((e.code === 'Space' || e.code === 'ArrowUp') && !e.repeat) press(e);
+  });
+  window.addEventListener('keyup', (e) => {
+    if (e.code === 'Space' || e.code === 'ArrowUp') release(e);
+  });
+
+  // ---------- 障害物 ----------
+  function spawn() {
+    const r = Math.random();
+    let o;
+    if (r < 0.45) {
+      o = { type: 'box', w: 46 + Math.random() * 26, h: 42 + Math.random() * 36 };
+    } else if (r < 0.75) {
+      o = { type: 'tires', w: 56, h: Math.random() < 0.5 ? 36 : 70 };
+    } else {
+      o = { type: 'car', w: 158 + Math.random() * 24, h: 56 };
+    }
+    o.x = W + 40;
+    S.obstacles.push(o);
+    // 次の出現までは「時間」で間隔を取る（速くなっても詰まりすぎない）
+    S.spawnIn = S.speed * (1.05 + Math.random() * 0.8);
+  }
+
+  // ---------- 更新 ----------
+  function update(dt) {
+    S.t += dt;
+    for (const c of S.clouds) {
+      c.x -= dt * 6;
+      if (c.x < -120) { c.x = W + 60; c.y = 50 + Math.random() * 90; }
+    }
+    if (S.mode === 'title') { S.bgx += dt * 40; return; }
+    if (S.mode === 'over') {
+      if (S.crashRot > -0.5) S.crashRot = Math.max(-0.5, S.crashRot - dt * 2.2);
+      return;
+    }
+
+    // run
+    S.speed = Math.min(780, S.speed + 5 * dt);
+    S.dist += (S.speed * dt) / 48;
+    S.wheel += (S.speed * dt) / 17;
+    S.bgx += S.speed * dt;
+
+    if (S.charging && S.grounded) {
+      S.charge = Math.min(1, S.charge + dt / 0.75);
+    }
+
+    // 重力
+    S.vy += GRAV * dt;
+    S.py += S.vy * dt;
+
+    // 障害物の移動
+    for (const o of S.obstacles) o.x -= S.speed * dt;
+    S.obstacles = S.obstacles.filter((o) => o.x + o.w > -60);
+    S.spawnIn -= S.speed * dt;
+    if (S.spawnIn <= 0) spawn();
+
+    // 接地・衝突判定
+    let surface = GROUND_Y;
+    let crashed = false;
+    for (const o of S.obstacles) {
+      const overlap = PX + 30 > o.x && PX - 34 < o.x + o.w;
+      if (!overlap) continue;
+      const top = GROUND_Y - o.h;
+      if (S.py <= top + 10) {
+        surface = Math.min(surface, top);
+      } else {
+        crashed = true;
+      }
+    }
+    if (crashed) { gameOver(); return; }
+    if (S.py >= surface) {
+      S.py = surface;
+      S.vy = 0;
+      S.grounded = true;
+    } else {
+      S.grounded = false;
+    }
+  }
+
+  // ---------- 描画 ----------
+  function rr(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, r);
+  }
+
+  function drawBackground() {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#8fd4ff');
+    g.addColorStop(0.75, '#dff6ff');
+    g.addColorStop(1, '#eafbf0');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    // 太陽
+    ctx.fillStyle = '#ffd94d';
+    ctx.beginPath(); ctx.arc(862, 68, 30, 0, Math.PI * 2); ctx.fill();
+
+    // 雲
+    ctx.fillStyle = 'rgba(255,255,255,.92)';
+    for (const c of S.clouds) {
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, 22 * c.s, 0, Math.PI * 2);
+      ctx.arc(c.x + 24 * c.s, c.y + 4 * c.s, 17 * c.s, 0, Math.PI * 2);
+      ctx.arc(c.x - 25 * c.s, c.y + 5 * c.s, 15 * c.s, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 遠くの建物（パララックス）
+    const heights = [120, 175, 140, 205, 155, 185];
+    const off = (S.bgx * 0.25) % 190;
+    ctx.fillStyle = '#b7d3e8';
+    for (let i = -1; i < 7; i++) {
+      const bx = i * 190 - off;
+      const bh = heights[((i % heights.length) + heights.length) % heights.length];
+      ctx.fillRect(bx, GROUND_Y - bh, 150, bh);
+    }
+
+    // 地面
+    ctx.fillStyle = '#8f959c';
+    ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+    ctx.fillStyle = '#69b84d';
+    ctx.fillRect(0, GROUND_Y, W, 7);
+    // 白線
+    ctx.fillStyle = 'rgba(255,255,255,.75)';
+    const dashOff = S.bgx % 84;
+    for (let x = -84; x < W + 84; x += 84) {
+      ctx.fillRect(x - dashOff, GROUND_Y + 46, 44, 6);
+    }
+  }
+
+  function drawObstacle(o) {
+    const top = GROUND_Y - o.h;
+    if (o.type === 'box') {
+      ctx.fillStyle = '#d9a066';
+      ctx.strokeStyle = '#a9743a';
+      ctx.lineWidth = 3;
+      ctx.fillRect(o.x, top, o.w, o.h);
+      ctx.strokeRect(o.x, top, o.w, o.h);
+      ctx.beginPath();
+      ctx.moveTo(o.x, top); ctx.lineTo(o.x + o.w, top + o.h);
+      ctx.moveTo(o.x + o.w, top); ctx.lineTo(o.x, top + o.h);
+      ctx.stroke();
+    } else if (o.type === 'tires') {
+      const n = o.h > 50 ? 2 : 1;
+      for (let i = 0; i < n; i++) {
+        const cy = GROUND_Y - 18 - i * 34;
+        ctx.fillStyle = '#2f3337';
+        ctx.beginPath(); ctx.arc(o.x + o.w / 2, cy, 18, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#7d838a';
+        ctx.beginPath(); ctx.arc(o.x + o.w / 2, cy, 8, 0, Math.PI * 2); ctx.fill();
+      }
+    } else { // car
+      ctx.fillStyle = '#4a90d9';
+      rr(o.x, top + 16, o.w, 40, 9); ctx.fill();
+      rr(o.x + o.w * 0.22, top, o.w * 0.46, 26, 8); ctx.fill();
+      ctx.fillStyle = '#cfeaff';
+      rr(o.x + o.w * 0.27, top + 5, o.w * 0.16, 16, 4); ctx.fill();
+      rr(o.x + o.w * 0.47, top + 5, o.w * 0.16, 16, 4); ctx.fill();
+      ctx.fillStyle = '#24282c';
+      for (const wx of [o.x + 26, o.x + o.w - 26]) {
+        ctx.beginPath(); ctx.arc(wx, GROUND_Y - 2, 13, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#9aa1a8';
+        ctx.beginPath(); ctx.arc(wx, GROUND_Y - 2, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#24282c';
+      }
+    }
+  }
+
+  function drawPlayer() {
+    ctx.save();
+    ctx.translate(PX, S.py);
+    if (S.mode === 'over') ctx.rotate(S.crashRot);
+
+    const wheelR = 17;
+    const rear = { x: -30, y: -wheelR };
+    const front = { x: 32, y: -wheelR };
+    const crank = { x: 0, y: -34 };
+    const seat = { x: -9, y: -54 };
+    const handle = { x: 24, y: -56 };
+
+    // 車輪
+    for (const wpos of [rear, front]) {
+      ctx.strokeStyle = '#22252a';
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(wpos.x, wpos.y, wheelR, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 2;
+      for (let k = 0; k < 3; k++) {
+        const a = S.wheel + (k * Math.PI) / 3;
+        ctx.beginPath();
+        ctx.moveTo(wpos.x - Math.cos(a) * wheelR, wpos.y - Math.sin(a) * wheelR);
+        ctx.lineTo(wpos.x + Math.cos(a) * wheelR, wpos.y + Math.sin(a) * wheelR);
+        ctx.stroke();
+      }
+    }
+
+    // フレーム
+    ctx.strokeStyle = '#e0393e';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(rear.x, rear.y); ctx.lineTo(seat.x, seat.y);
+    ctx.moveTo(seat.x, seat.y); ctx.lineTo(handle.x, handle.y);
+    ctx.moveTo(handle.x, handle.y); ctx.lineTo(front.x, front.y);
+    ctx.moveTo(rear.x, rear.y); ctx.lineTo(crank.x, crank.y);
+    ctx.moveTo(crank.x, crank.y); ctx.lineTo(front.x, front.y);
+    ctx.moveTo(crank.x, crank.y); ctx.lineTo(seat.x, seat.y);
+    ctx.stroke();
+
+    // ペダル
+    const pa = S.wheel * 0.9;
+    const p1 = { x: crank.x + Math.cos(pa) * 11, y: crank.y + Math.sin(pa) * 11 };
+    const p2 = { x: crank.x - Math.cos(pa) * 11, y: crank.y - Math.sin(pa) * 11 };
+    ctx.strokeStyle = '#22252a';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(crank.x, crank.y); ctx.lineTo(p1.x, p1.y);
+    ctx.moveTo(crank.x, crank.y); ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
+
+    // 人
+    const hip = { x: -7, y: -68 };
+    const shoulder = { x: 9, y: -94 };
+    // 脚（膝を付けてペダルへ）
+    ctx.strokeStyle = '#2b3a67';
+    ctx.lineWidth = 6;
+    for (const p of [p1, p2]) {
+      const knee = { x: (hip.x + p.x) / 2 + 7, y: (hip.y + p.y) / 2 - 6 };
+      ctx.beginPath();
+      ctx.moveTo(hip.x, hip.y); ctx.lineTo(knee.x, knee.y); ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    }
+    // 胴
+    ctx.strokeStyle = '#35a0db';
+    ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.moveTo(hip.x, hip.y); ctx.lineTo(shoulder.x, shoulder.y); ctx.stroke();
+    // 腕
+    ctx.strokeStyle = '#f2c29b';
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(shoulder.x, shoulder.y); ctx.lineTo(handle.x, handle.y - 2); ctx.stroke();
+    // 頭＋帽子
+    ctx.fillStyle = '#f2c29b';
+    ctx.beginPath(); ctx.arc(shoulder.x + 5, shoulder.y - 13, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffd94d';
+    ctx.beginPath(); ctx.arc(shoulder.x + 5, shoulder.y - 16, 10, Math.PI, Math.PI * 2); ctx.fill();
+    ctx.fillRect(shoulder.x + 3, shoulder.y - 17, 16, 4);
+
+    ctx.restore();
+
+    // チャージメーター
+    if (S.mode === 'run' && S.charging) {
+      const w = 110, x = PX - 42, y = S.py - 148;
+      ctx.fillStyle = 'rgba(0,0,0,.35)';
+      rr(x - 3, y - 3, w + 6, 16, 6); ctx.fill();
+      ctx.fillStyle = S.charge >= 1 ? '#ff5252' : '#ffb02e';
+      if (S.charge > 0) { rr(x, y, w * S.charge, 10, 5); ctx.fill(); }
+    }
+  }
+
+  function drawHud() {
+    ctx.fillStyle = '#12303f';
+    ctx.font = 'bold 30px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${Math.floor(S.dist)} m`, 22, 44);
+    ctx.textAlign = 'right';
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillText(`ベスト ${S.best} m`, W - 22, 38);
+    ctx.textAlign = 'left';
+  }
+
+  function drawTitle() {
+    ctx.fillStyle = 'rgba(10, 35, 50, .55)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 84px sans-serif';
+    ctx.fillText('チャリラン', W / 2, 208);
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillText('チャリ走風・自転車ジャンプゲーム', W / 2, 252);
+    ctx.font = '20px sans-serif';
+    ctx.fillText('長押し（タップ / スペース）でジャンプをためる', W / 2, 312);
+    ctx.fillText('離すとジャンプ。障害物の上には乗れる。側面に当たると転倒', W / 2, 344);
+    ctx.font = 'bold 26px sans-serif';
+    ctx.fillText('タップでスタート', W / 2, 420);
+    ctx.textAlign = 'left';
+  }
+
+  function drawOver() {
+    ctx.fillStyle = 'rgba(10, 35, 50, .45)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 56px sans-serif';
+    ctx.fillText('転倒…！', W / 2, 190);
+    ctx.font = 'bold 34px sans-serif';
+    ctx.fillText(`${Math.floor(S.dist)} m`, W / 2, 258);
+    ctx.font = '22px sans-serif';
+    ctx.fillText(`ベスト ${S.best} m`, W / 2, 296);
+    if (S.t - S.overAt > 0.6) {
+      ctx.font = 'bold 24px sans-serif';
+      ctx.fillText('タップでリトライ', W / 2, 372);
+    }
+    ctx.textAlign = 'left';
+  }
+
+  function draw() {
+    drawBackground();
+    for (const o of S.obstacles) drawObstacle(o);
+    drawPlayer();
+    if (S.mode === 'run') drawHud();
+    if (S.mode === 'title') drawTitle();
+    if (S.mode === 'over') drawOver();
+  }
+
+  // ---------- ループ ----------
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
