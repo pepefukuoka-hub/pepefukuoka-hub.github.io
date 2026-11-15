@@ -10,6 +10,7 @@
 | https://pepefukuoka-hub.github.io/music/cut/ | 音と動画を切り取る(動画の編集エンジンは、/douga-cut/vendor/ を使う。そこも動かさない) |
 | https://pepefukuoka-hub.github.io/stem-ai/ | 古い住所。上へ自動で移す(消さない) |
 | https://pepefukuoka-hub.github.io/video-audio/ | 古い住所。上へ自動で移す(消さない) |
+| https://pepefukuoka-hub.github.io/private/notes/ | 手書きノート（元は notes-app- リポジトリ。ノートは利用者の端末の中に保存されるので、住所を変えると、ホーム画面のアイコンが使えなくなる） |
 | https://pepefukuoka-hub.github.io/ , /private/ , /work/ | ハブ |
 
 ## 決まり

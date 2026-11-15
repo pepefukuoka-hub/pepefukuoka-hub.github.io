@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>手書きノート</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="手書きノート">
+<meta name="theme-color" content="#f4f5f7">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ノート一覧 -->
+<section id="lib">
+  <header class="libhead">
+    <h1>ノート</h1>
+    <div class="sp"></div>
+    <button id="bBackup" class="txt">バックアップ</button>
+    <button id="bNew" class="primary">＋ 新しいノート</button>
+  </header>
+  <div id="grid"></div>
+  <p id="empty" hidden>まだノートがありません。「＋ 新しいノート」から作れます。</p>
+</section>
+
+<!-- 編集画面 -->
+<section id="ed" hidden>
+  <header id="bar">
+    <button id="bBack" class="txt" title="ノート一覧へ">‹ 一覧</button>
+    <div class="grp" id="tools">
+      <button data-tool="pen" title="ペン"><svg viewBox="0 0 24 24"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 013 3L8 19z"/><path d="M14.5 6.5l3 3"/></svg></button>
+      <button data-tool="hl" title="蛍光ペン"><svg viewBox="0 0 24 24"><path d="M8 14l7-9 4 3-7 9z"/><path d="M8 14l-2 4 5-1"/><path d="M4 21h9"/></svg></button>
+      <button data-tool="eraser" title="消しゴム"><svg viewBox="0 0 24 24"><path d="M4 15l9-9a2 2 0 013 0l4 4a2 2 0 010 3l-7 7H8z"/><path d="M9 10l6 6"/><path d="M8 20h12"/></svg></button>
+      <button data-tool="lasso" title="投げ縄（選んで動かす）"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="9" rx="8" ry="5" stroke-dasharray="3 2.5"/><path d="M7 13c-2 2-1 5 2 4s1-4-1-3 0 5 3 7"/></svg></button>
+    </div>
+    <button id="bEraseMode" class="chip" hidden></button>
+    <div class="grp" id="widths"></div>
+    <div class="grp" id="colors"></div>
+    <div class="sp"></div>
+    <div class="grp">
+      <button id="bUndo" title="取り消し"><svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5"/><path d="M4 12h10a5 5 0 010 10h-2"/></svg></button>
+      <button id="bRedo" title="やり直し"><svg viewBox="0 0 24 24"><path d="M15 7l5 5-5 5"/><path d="M20 12H10a5 5 0 000 10h2"/></svg></button>
+    </div>
+    <button id="bPages" class="chip" title="ページ一覧">1 / 1</button>
+    <button id="bAddPage" title="ページを追加"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg></button>
+    <button id="bMenu" title="メニュー"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg></button>
+  </header>
+  <div id="stage">
+    <canvas id="view"></canvas>
+    <canvas id="live"></canvas>
+  </div>
+  <div id="selbar" hidden>
+    <span>色はパレットで変更</span>
+    <button id="bSelDup">複製</button>
+    <button id="bSelDel" class="danger">削除</button>
+    <button id="bSelDone">完了</button>
+  </div>
+  <div id="toast" hidden></div>
+
+  <div id="menu" class="pop" hidden>
+    <div class="lbl">用紙</div>
+    <div class="row" id="mPaper">
+      <button data-paper="plain">無地</button><button data-paper="ruled">罫線</button><button data-paper="grid">方眼</button><button data-paper="dot">ドット</button>
+    </div>
+    <div class="row" id="mColor">
+      <button data-pc="white">白</button><button data-pc="cream">クリーム</button><button data-pc="dark">黒</button>
+    </div>
+    <hr>
+    <button id="mFinger"></button>
+    <button id="mPng">このページを画像で保存</button>
+    <button id="mPdf">ノート全体を PDF で書き出す</button>
+    <button id="mClear" class="danger">このページを白紙に戻す</button>
+  </div>
+
+  <aside id="pages" hidden>
+    <header><b>ページ</b><div class="sp"></div><button id="bPagesClose" class="txt">閉じる</button></header>
+    <div id="plist"></div>
+  </aside>
+</section>
+
+<dialog id="dNew">
+  <form method="dialog">
+    <h2 id="dNewTitle">新しいノート</h2>
+    <label>名前<input id="fTitle" type="text" maxlength="60" autocomplete="off"></label>
+    <div id="dNewOpts">
+      <label>用紙
+        <select id="fPaper"><option value="ruled">罫線（7mm）</option><option value="grid">方眼（5mm）</option><option value="dot">ドット（5mm）</option><option value="plain">無地</option></select>
+      </label>
+      <label>紙の色
+        <select id="fPColor"><option value="white">白</option><option value="cream">クリーム</option><option value="dark">黒</option></select>
+      </label>
+      <label>表紙の色
+        <span id="fCover" class="covers"></span>
+      </label>
+    </div>
+    <div class="btns"><button value="cancel" class="txt">やめる</button><button value="ok" class="primary" id="dNewOk">作る</button></div>
+  </form>
+</dialog>
+
+<dialog id="dBackup">
+  <form method="dialog">
+    <h2>バックアップ</h2>
+    <p>ノートは、この端末のブラウザの中だけに保存されています。ブラウザのデータを消すと、ノートも消えます。大事なノートは、ときどきファイルに書き出してください。</p>
+    <div class="btns col">
+      <button type="button" id="bExport" class="primary">全部のノートをファイルに書き出す</button>
+      <button type="button" id="bImport">ファイルから読み込む（追加）</button>
+      <button value="cancel" class="txt">閉じる</button>
+    </div>
+    <input id="fImport" type="file" accept=".json,application/json" hidden>
+  </form>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
