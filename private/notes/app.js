@@ -24,6 +24,8 @@ const S = Object.assign({
   tool: 'pen', fingerDraw: true, penSeen: false, eraseWhole: false,
   pen: { c: PEN_COLORS[0], w: 2.8 }, hl: { c: HL_COLORS[0], w: 22 }, eraser: { w: 16 },
 }, JSON.parse(localStorage.getItem('notes-settings') || '{}'));
+// 入力：finger＝指でも書く／pen＝ペンで書き、指で動かす／penonly＝ペンだけ（1本指は無視、2本指で移動・拡大）
+if (!S.input) S.input = S.penSeen && !S.fingerDraw ? 'pen' : 'finger';
 const saveSettings = () => localStorage.setItem('notes-settings', JSON.stringify(S));
 
 /* ---------- 保存（IndexedDB） ---------- */
@@ -261,6 +263,7 @@ const caches = new Map();                             // ページの下絵（id
 const dirty = new Set();
 let G = null;                                         // 進行中の操作
 const touches = new Map();
+let lastPen = 0;                                      // ペンが最後に動いた時刻（直後のタッチは手のひらとみなす）
 let saveTimer = 0, settleTimer = 0, rafDraw = 0, inertia = 0, eraserPos = null;
 
 const pageY = (i) => i * (PH + GAP);
@@ -428,13 +431,16 @@ stage.addEventListener('pointerdown', (e) => {
   try { stage.setPointerCapture(e.pointerId); } catch (_) {}
   cancelAnimationFrame(inertia);
   if (e.pointerType === 'pen' && !S.penSeen) {        // ペンを初めて使ったら、指は「動かす・拡大」専用にする
-    S.penSeen = true; S.fingerDraw = false; saveSettings(); syncBar();
-    toast('ペンを検出しました。指は、動かす・拡大の専用にします（メニューで変えられます）。');
+    S.penSeen = true; S.input = 'pen'; saveSettings(); syncBar();
+    toast('ペンを検出しました。指は、動かす・拡大の専用にします（メニューの「入力」で変えられます）。');
   }
+  if (e.pointerType === 'pen') lastPen = performance.now();
   if (e.pointerType === 'touch') {
     if (G && G.kind === 'tool' && G.ptype !== 'touch') return;          // ペンで書いている間の手のひらは無視
+    if (S.input !== 'finger' && performance.now() - lastPen < 300) return;  // ペンを離した直後のタッチは手のひら
     touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (touches.size === 1 && S.fingerDraw && !G) { startTool(e); return; }
+    if (touches.size === 1 && S.input === 'finger' && !G) { startTool(e); return; }
+    if (S.input === 'penonly' && touches.size < 2) return;              // ペンだけのモード：1本指は無視
     if (G && G.kind === 'tool') cancelTool();                           // 2本目の指が来たら、書くのをやめて拡大へ
     G = { kind: 'nav', vx: 0, vy: 0, t: performance.now() };
     return;
@@ -444,10 +450,12 @@ stage.addEventListener('pointerdown', (e) => {
   startTool(e);
 });
 stage.addEventListener('pointermove', (e) => {
+  if (e.pointerType === 'pen') lastPen = performance.now();
   if (e.pointerType === 'touch' && touches.has(e.pointerId) && !(G && G.kind === 'tool')) {
     const t = touches.get(e.pointerId), all = [...touches.values()];
     if (G && G.kind === 'nav') {
-      if (all.length === 1) {
+      if (all.length === 1 && S.input === 'penonly') { /* 1本指では動かさない */ }
+      else if (all.length === 1) {
         const dx = e.clientX - t.x, dy = e.clientY - t.y, now = performance.now(), dt = Math.max(1, now - G.t);
         E.tx += dx; E.ty += dy;
         G.vx = G.vx * 0.5 + (dx / dt) * 0.5; G.vy = G.vy * 0.5 + (dy / dt) * 0.5; G.t = now;
@@ -471,6 +479,7 @@ stage.addEventListener('pointermove', (e) => {
   if (!G.raf) G.raf = requestAnimationFrame(() => { if (G) G.raf = 0; toolFrame(); });
 });
 const onUp = (e) => {
+  if (e.pointerType === 'pen') lastPen = performance.now();
   if (e.pointerType === 'touch') {
     touches.delete(e.pointerId);
     if (G && G.kind === 'nav') {
@@ -717,7 +726,8 @@ function syncBar() {
   $('input', lb).onchange = (e) => pick(e.target.value); col.append(lb);
   const em = $('#bEraseMode'); em.hidden = t !== 'eraser'; em.textContent = S.eraseWhole ? '線ごと消す' : '部分を消す';
   $('#bUndo').disabled = !E.undo.length; $('#bRedo').disabled = !E.redo.length;
-  $('#mFinger').textContent = `指で書く：${S.fingerDraw ? 'オン' : 'オフ（指は動かす・拡大）'}`;
+  $$('#mInput button').forEach((b) => b.classList.toggle('on', b.dataset.in === S.input));
+  $('#mInputNote').textContent = { finger: '指でも書けます。2本指で移動・拡大。', pen: 'ペンで書き、指は移動・拡大だけ。', penonly: 'ペンだけ反応。1本指は無視、2本指で移動・拡大。' }[S.input];
   if (E.book) {
     $$('#mPaper button').forEach((b) => b.classList.toggle('on', b.dataset.paper === E.book.paper));
     $$('#mColor button').forEach((b) => b.classList.toggle('on', b.dataset.pc === E.book.paperColor));
@@ -731,7 +741,7 @@ $('#tools').onclick = (e) => {
 $('#bEraseMode').onclick = () => { S.eraseWhole = !S.eraseWhole; saveSettings(); syncBar(); };
 function closePops() { $('#menu').hidden = true; }
 $('#bMenu').onclick = () => { $('#menu').hidden = !$('#menu').hidden; $('#pages').hidden = true; };
-$('#mFinger').onclick = () => { S.fingerDraw = !S.fingerDraw; S.penSeen = true; saveSettings(); syncBar(); };
+$('#mInput').onclick = (e) => { if (!e.target.dataset.in) return; S.input = e.target.dataset.in; S.penSeen = true; touches.clear(); saveSettings(); syncBar(); };
 const setPaper = (k, v) => { E.book[k] = v; dirty.add('book'); markDirty(E.pages[0]); caches.clear(); syncBar(); draw(true); };
 $('#mPaper').onclick = (e) => { if (e.target.dataset.paper) setPaper('paper', e.target.dataset.paper); };
 $('#mColor').onclick = (e) => { if (e.target.dataset.pc) setPaper('paperColor', e.target.dataset.pc); };
