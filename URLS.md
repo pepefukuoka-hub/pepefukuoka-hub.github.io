@@ -13,6 +13,9 @@
 | https://pepefukuoka-hub.github.io/private/notes/ | 手書きノート（元は notes-app- リポジトリ。ノートは利用者の端末の中に保存されるので、住所を変えると、ホーム画面のアイコンが使えなくなる） |
 | https://pepefukuoka-hub.github.io/ , /private/ , /work/ | ハブ |
 
+## 公開を終えた住所
+- https://pepefukuoka-hub.github.io/work/hatsudenki-sim/ （と outdoor.html）：2026-11-20、利用者の判断で公開を終了。中身は「公開を終了しました」の案内だけ。仕事の一覧のカードも外した。**元の作品を、ここへ戻さない**（委託先の施設の情報を含むため。開発は非公開のリポジトリと利用者の Mac で続ける）。
+
 ## 決まり
 - フォルダの名前を変える・移すときは、**古い場所に、新しい場所への自動転送ページを必ず残す**。
 - push する前に `tools/check-urls.sh` を動かして、上の住所のファイルが、全部あることを確かめる。
